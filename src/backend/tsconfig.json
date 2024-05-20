@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./",
+    "module": "commonjs"  // Typically, backend uses commonjs
+  },
+  "include": ["**/*.ts"]
+}
