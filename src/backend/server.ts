@@ -17,7 +17,7 @@ app.use('/api', userRoutes);
 app.use('/api', orderRoutes);
 app.use('/api', downloadRoutes);
 
-app.get('api/ping', (req, res) => {
+app.get('/api/ping', (req, res) => {
   res.send('pong');
 });
 

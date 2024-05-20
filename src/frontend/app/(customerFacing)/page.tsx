@@ -1,15 +1,15 @@
 import { ProductCard, ProductCardSkeleton } from "@/components/productCard";
 import { Button } from "@/components/ui/button";
-import db from "@/frontend/db/db";
 import { cache } from "@/frontend/lib/cache";
-import { Product } from "@prisma/client";
+import { getProducts } from "@/frontend/api/products";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { Product } from "@/shared/productTypes";
 
 const getMostPopularProducts = cache(
   () => {
-    return db.products.findMany({
+    return getProducts({
       where: { isAvailableForPurchase: true },
       orderBy: { orders: { _count: "desc" } },
       take: 6,
@@ -20,7 +20,7 @@ const getMostPopularProducts = cache(
 ); //uniquely identify by route, revalidate daily
 
 const getNewestProducts = cache(() => {
-  return db.products.findMany({
+  return getProducts({
     where: { isAvailableForPurchase: true },
     orderBy: { createdAt: "desc" },
     take: 6,

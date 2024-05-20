@@ -3,12 +3,33 @@
 
 generator client {
   provider = "prisma-client-js"
+  output = "../../../node_modules/@prisma/client"
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+model downloads {
+  id        String   @id @default(uuid())
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  productId String   @map("product_id")
+  product   products @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model orders {
+  id               String   @id @default(uuid())
+  pricePaidInCents Int      @map("price_paid_in_cents")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  userId           String   @map("user_id")
+  productId        String   @map("product_id")
+  user             users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product          products @relation(fields: [productId], references: [id], onDelete: Restrict)
 }
 
 model products {
@@ -22,7 +43,7 @@ model products {
   createdAt              DateTime    @default(now()) @map("created_at")
   updatedAt              DateTime    @updatedAt @map("updated_at")
   orders                 orders[]
-  downloadVerifications  downloads[]
+  downloads              downloads[]
 }
 
 model users {
@@ -31,24 +52,4 @@ model users {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   orders    orders[]
-}
-
-model orders {
-  id               String   @id @default(uuid())
-  pricePaidInCents Int      @map("price_paid_in_cents")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  userId    String   @map("user_id")
-  productId String   @map("product_id")
-  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   products @relation(fields: [productId], references: [id], onDelete: Restrict)
-}
-
-model downloads {
-  id        String   @id @default(uuid())
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  productId String   @map("product_id")
-  product   products @relation(fields: [productId], references: [id], onDelete: Cascade)
 }

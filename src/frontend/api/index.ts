@@ -1,7 +1,7 @@
-import * as productApi from './productApi';
-import * as userApi from './userApi';
-import * as orderApi from './orderApi';
-import * as downloadApi from './downloadApi';
+import * as productApi from './products';
+import * as userApi from './users';
+import * as orderApi from './orders';
+import * as downloadApi from './downloads';
 
 const api = {
   ...productApi,
