@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/frontend/components/ui/button";
 import { PageHeader } from "../_components/page-header";
 import Link from "next/link";
 import {
@@ -9,7 +9,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/frontend/components/ui/table";
 import db from "@/frontend/db/db";
 import { CheckCircle2, MoreVertical, XCircleIcon } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/frontend/lib/formatters";
@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/frontend/components/ui/dropdown-menu";
 import {
   ActiveToggleDropdownItem,
   DeleteDropdownItem,

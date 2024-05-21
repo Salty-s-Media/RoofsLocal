@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/frontend/components/ui/button";
 import db from "@/frontend/db/db";
 import { formatCurrency } from "@/frontend/lib/formatters";
 import Image from "next/image";

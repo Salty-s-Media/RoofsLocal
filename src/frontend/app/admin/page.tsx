@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/frontend/components/ui/card";
 import db from "@/frontend/db/db";
 import { formatCurrency, formatNumber } from "@/frontend/lib/formatters";
 

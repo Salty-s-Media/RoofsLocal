@@ -1,5 +1,5 @@
-import { ProductCard, ProductCardSkeleton } from "@/components/productCard";
-import { Button } from "@/components/ui/button";
+import { ProductCard, ProductCardSkeleton } from "@/frontend/components/productCard";
+import { Button } from "@/frontend/components/ui/button";
 import { cache } from "@/frontend/lib/cache";
 import { getProducts } from "@/frontend/api/products";
 import { ArrowRight } from "lucide-react";

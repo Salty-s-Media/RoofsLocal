@@ -1,7 +1,7 @@
 "use client";
 
 import { userOrderExists } from "@/frontend/app/actions/orders";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/frontend/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,7 +9,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/frontend/components/ui/card";
 import { formatCurrency } from "@/frontend/lib/formatters";
 import {
   Elements,

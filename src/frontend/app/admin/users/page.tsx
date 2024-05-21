@@ -5,7 +5,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/frontend/components/ui/table";
 import db from "@/frontend/db/db";
 import { formatCurrency, formatNumber } from "@/frontend/lib/formatters";
 import { PageHeader } from "../_components/page-header";
@@ -13,7 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/frontend/components/ui/dropdown-menu";
 import { MoreVertical } from "lucide-react";
 import { DeleteDropDownItem } from "./_components/UserActions";
 

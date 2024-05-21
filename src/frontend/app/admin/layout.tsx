@@ -1,4 +1,4 @@
-import { Nav, NavLink } from "@/components/nav";
+import { Nav, NavLink } from "@/frontend/components/nav";
 import { ReactNode } from "react";
 
 export const dynamic = "force-dynamic";
