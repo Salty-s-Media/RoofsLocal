@@ -3,7 +3,7 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
-export default async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest) {
   if (req.method === "DELETE") {
     try {
       const body = await req.json();
