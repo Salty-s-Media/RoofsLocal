@@ -12,23 +12,16 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "stripe/**/*.ts",
-    "hubspot/**/*.ts",
-    "utils/*.ts",
-    ".next/types/**/*.ts"
+    "**/[*].ts",
+    "**/[*].tsx"
   ],
   "exclude": ["node_modules"]
 }

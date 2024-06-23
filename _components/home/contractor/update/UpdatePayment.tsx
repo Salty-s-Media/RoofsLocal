@@ -33,7 +33,6 @@ export default function BillingManagement() {
     const customerId = res.customerId;
 
     // Create session and process new payment method
-
     const req1 = await fetch("/api/stripe/create-update-session", {
       method: "POST",
       headers: {

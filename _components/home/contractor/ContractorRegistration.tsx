@@ -2,44 +2,31 @@
 
 import React from "react";
 
+interface FormStruct {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  zipCodes: string[];
+  stripeId: string;
+}
+
 export default function ContractorRegistration() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
 
+    if (!formData) return;
+
     const data = Object.fromEntries(formData.entries());
 
-    // Testing Only
-    localStorage.setItem("ZIPCode", data.zipCode as string);
-
-    // Testing Only
-    console.log(JSON.stringify(data));
+    // Make available on /success for convenience.
+    localStorage.setItem("email", data.email as string);
 
     try {
-      // First register their company.
-      const resp1 = await fetch("/api/hubspot/create-company", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          zip: data.zipCode,
-          phone: data.phone,
-          company: data.company,
-        }),
-      });
-
-      if (resp1.status === 200) {
-        const responseData = await resp1.json();
-        console.log("Company Created: ", responseData);
-      } else {
-        console.error("Company creation error");
-      }
-      // Continue creating a session and starting the autobilling process.
+      // Continue creating a session and starting the autobilling process - Then pass down the newly created stripeId to the contractor.
       const resp = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: {
@@ -57,8 +44,34 @@ export default function ContractorRegistration() {
       if (resp.status === 200) {
         const responseData = await resp.json();
         const checkoutUrl = responseData.url as string;
-        window.location.href = checkoutUrl;
-        return;
+        const stripeId = responseData.stripeId as string;
+
+        const resp1 = await fetch("/api/contractors", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            phone: data.phone,
+            company: data.company,
+            zipCodes: [data.zipCode],
+            stripeId: stripeId,
+          }),
+        });
+
+        if (resp1.status === 201) {
+          const responseData = await resp1.json();
+          console.log("Company Created: ", responseData);
+          window.location.href = checkoutUrl;
+          return;
+        } else {
+          console.error("Prisma record creation error");
+        }
+      } else {
+        console.error("Stripe session creation error");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -66,13 +79,13 @@ export default function ContractorRegistration() {
   };
 
   return (
-    <div className="bg-white flex flex-col">
-      <div className="relative mx-auto">
-        <div className="p-8 rounded-xl bg-white shadow-lg">
+    <div className="flex flex-col">
+      <div className=" relative mx-auto">
+        <div className=" bg-white p-8 text-blk rounded-xl shadow-lg">
           <h2 className="text-gray-800 font-bold text-2xl mb-4">
             Welcome, Contractor!
           </h2>
-          <form className="space-y-2" onSubmit={handleSubmit}>
+          <form className=" bg-white space-y-2" onSubmit={handleSubmit}>
             <div>
               <label
                 htmlFor="firstName"

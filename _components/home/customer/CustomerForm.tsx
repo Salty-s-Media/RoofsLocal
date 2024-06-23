@@ -52,7 +52,7 @@ export default function CustomerRegistration({
       <button onClick={closeModal} className="absolute top-4 left-4">
         <X size={20} />
       </button>
-      <div className="bg-white flex flex-col mt-6">
+      <div className="bg-white flex flex-col mt-6 text-[var(--blk)]">
         <div className="relative mx-auto">
           <div className="p-8 rounded-xl bg-white shadow-lg">
             <h2 className="text-blue-500 font-bold text-2xl mb-4">

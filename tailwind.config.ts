@@ -2,9 +2,9 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./_components/**/*.{js,ts,tsx}",
   ],
   theme: {
@@ -16,10 +16,10 @@ const config: Config = {
       },
       colors: {
         bg: "var(--bg)",
-        black: "var(--black)",
+        black: "var(--t)",
         acc1: "var(--acc1)",
         acc2: "var(--acc2)",
-        grad: "var(--grad)",
+        blk: "var(--blk)",
       },
     },
   },

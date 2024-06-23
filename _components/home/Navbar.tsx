@@ -5,7 +5,7 @@ export default function Navbar() {
   return (
     <nav
       aria-label="navigation"
-      className="flex w-full top-0 fixed justify-between items-center p-2 bg-acc1 z-10"
+      className="flex w-full top-0 fixed justify-between items-center p-2 bg z-10"
     >
       <div className="container mx-auto px-6 py-3 md:flex md:justify-between md:items-center">
         <div className="flex justify-between items-center">
