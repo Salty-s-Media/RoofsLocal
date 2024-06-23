@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #151e2e;
+  --t: #ffffff;
+  --acc1: #0a3f7c;
+  --acc2: #1569c9;
+  --blk: #000000;
+}
+
+html {
+  scrollbar-width: thin;
+}
+
+body {
+  color: var(--t);
+  background: var(--bg);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
