@@ -23,6 +23,7 @@ model Contractor {
   phone     String
   zipCodes  String[]
   stripeId  String
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

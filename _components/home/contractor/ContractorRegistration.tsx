@@ -22,6 +22,10 @@ export default function ContractorRegistration() {
 
     const data = Object.fromEntries(formData.entries());
 
+    const companyName = data.company as string;
+
+    console.log("Company Name: ", companyName);
+
     // Make available on /success for convenience.
     localStorage.setItem("email", data.email as string);
 
@@ -38,7 +42,7 @@ export default function ContractorRegistration() {
           email: data.email,
           zipCode: data.zipCode,
           phone: data.phone,
-          company: data.company,
+          company: companyName,
         }),
       });
       if (resp.status === 200) {
@@ -56,9 +60,10 @@ export default function ContractorRegistration() {
             lastName: data.lastName,
             email: data.email,
             phone: data.phone,
-            company: data.company,
+            company: companyName,
             zipCodes: [data.zipCode],
             stripeId: stripeId,
+            password: data.password,
           }),
         });
 
@@ -130,6 +135,22 @@ export default function ContractorRegistration() {
                 name="email"
                 type="email"
                 placeholder="Email"
+                required
+                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-800"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="abc123$"
                 required
                 className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />

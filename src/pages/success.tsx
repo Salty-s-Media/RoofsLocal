@@ -34,12 +34,12 @@ export default function Success() {
       }
 
       const info = await companyInfo.json();
-      const company = info.company;
+      const companyName = info.company; // THIS IS UNDEFINED!!! FIX ASAP
       const companyEmail = info.email;
       const zipCodes = info.zipCodes;
 
       console.log(
-        `Company: ${company}, Email: ${companyEmail}, Zip Codes: ${zipCodes}`
+        `Company: ${companyName}, Email: ${companyEmail}, Zip Codes: ${zipCodes}`
       );
 
       // Call the count of available leads. Returns Customer information.
@@ -106,7 +106,7 @@ export default function Success() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ company, idResults }),
+        body: JSON.stringify({ companyName, idResults }),
       });
       if (!updateLeads.ok) {
         console.error("HTTP error", updateLeads.status);
@@ -158,7 +158,6 @@ export default function Success() {
           <button
             className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded"
             onClick={handleChargeLater}
-            disabled={loaded || waiting}
           >
             {loaded ? `Successfully Billed` : `Search for Leads and Auto-Bill`}
           </button>

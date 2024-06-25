@@ -34,12 +34,27 @@ export default async function handler(
       res.status(500).json({ error: "Failed to fetch contractor" });
     }
   } else if (req.method === "PUT") {
-    const { firstName, lastName, company, phone, zipCodes, stripeId } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      company,
+      phone,
+      zipCodes,
+      stripeId,
+      password,
+    } = req.body;
     try {
       const contractor = await prisma.contractor.update({
         where: { email: decodedEmail },
-        data: { firstName, lastName, company, phone, zipCodes, stripeId },
+        data: {
+          firstName,
+          lastName,
+          company,
+          phone,
+          zipCodes,
+          stripeId,
+          password,
+        },
       });
       res.status(200).json(contractor);
     } catch (error) {

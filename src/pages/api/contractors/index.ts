@@ -9,8 +9,16 @@ export default async function handler(
 ) {
   if (req.method === "POST") {
     console.log("Request Body: ", req.body);
-    const { firstName, lastName, company, email, phone, zipCodes, stripeId } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      company,
+      email,
+      phone,
+      zipCodes,
+      stripeId,
+      password,
+    } = req.body;
     try {
       const contractor = await prisma.contractor.create({
         data: {
@@ -21,6 +29,7 @@ export default async function handler(
           phone,
           zipCodes,
           stripeId,
+          password,
         },
       });
       res.status(201).json(contractor);
