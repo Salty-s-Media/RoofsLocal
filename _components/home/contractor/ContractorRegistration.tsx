@@ -22,9 +22,11 @@ export default function ContractorRegistration() {
 
     const data = Object.fromEntries(formData.entries());
 
-    const companyName = data.company as string;
+    const companyName = formData.get("company");
 
-    console.log("Company Name: ", companyName);
+    // const companyName = data.company as string;
+
+    console.log("Company Name: ", companyName); // Defined
 
     // Make available on /success for convenience.
     localStorage.setItem("email", data.email as string);

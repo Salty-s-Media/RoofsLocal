@@ -34,6 +34,7 @@ export default function Success() {
       }
 
       const info = await companyInfo.json();
+      console.log("Info Object: ", info);
       const companyName = info.company; // THIS IS UNDEFINED!!! FIX ASAP
       const companyEmail = info.email;
       const zipCodes = info.zipCodes;

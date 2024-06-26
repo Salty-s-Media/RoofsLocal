@@ -12,6 +12,7 @@
     "@hubspot/api-client": "^11.1.0",
     "@prisma/client": "^5.15.1",
     "@stripe/stripe-js": "^4.0.0",
+    "jose": "^5.4.1",
     "lucide-react": "^0.396.0",
     "next": "14.2.4",
     "react": "^18",

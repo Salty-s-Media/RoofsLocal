@@ -1,5 +1,11 @@
+"use client";
+
+import { useRouter } from "next/router";
+
 export default function Login() {
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const router = useRouter();
+
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -9,12 +15,64 @@ export default function Login() {
     const data = Object.fromEntries(formData.entries());
 
     console.log("Login Data: ", data);
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        router.push("/dashboard");
+      } else {
+        // Handle errors
+      }
+
+      console.log("Login Result: ", result);
+    } catch (error) {
+      console.error("Login Error: ", error);
+    }
   };
+
+  const handleLogout = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    if (!formData) return;
+
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/logout", {
+        method: "POST",
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+      });
+
+      if (response.ok) {
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Logout Error: ", error);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
         <h1 className="text-3xl font-bold text-center mb-6 text-blk">Login</h1>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleLogin}>
           <div className="space-y-4">
             <div>
               <label
@@ -53,6 +111,12 @@ export default function Login() {
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Login
+            </button>
+            <button
+              onClick={() => handleLogout}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Logout
             </button>
           </div>
         </form>
