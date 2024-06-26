@@ -52,7 +52,7 @@ export default function ContractorRegistration() {
         const checkoutUrl = responseData.url as string;
         const stripeId = responseData.stripeId as string;
 
-        const resp1 = await fetch("/api/contractors", {
+        const resp1 = await fetch("/api/user/register/register", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

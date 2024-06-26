@@ -1,30 +1,32 @@
 "use client";
 
 import { useRouter } from "next/router";
+import { FormEvent } from "react";
 
 export default function Login() {
   const router = useRouter();
 
-  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     const formData = new FormData(event.currentTarget);
-
-    if (!formData) return;
-
     const data = Object.fromEntries(formData.entries());
 
     console.log("Login Data: ", data);
 
+    if (!data) return;
+
+    const email = data.email as string;
+    const _password = data._password as string;
+
     try {
-      const response = await fetch("/api/login", {
+      const response = await fetch("/api/user/login/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: data.email,
-          password: data.password,
+          email: email,
+          _password: _password,
         }),
       });
 
@@ -33,7 +35,7 @@ export default function Login() {
       if (response.ok) {
         router.push("/dashboard");
       } else {
-        // Handle errors
+        console.error("Login Error: ", result.error);
       }
 
       console.log("Login Result: ", result);
@@ -42,23 +44,9 @@ export default function Login() {
     }
   };
 
-  const handleLogout = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-
-    if (!formData) return;
-
-    const data = Object.fromEntries(formData.entries());
-
+  const handleLogout = async () => {
     try {
-      const response = await fetch("/api/logout", {
-        method: "POST",
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
-      });
+      const response = await fetch("/api/user/logout/logout");
 
       if (response.ok) {
         router.push("/");
@@ -83,24 +71,26 @@ export default function Login() {
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="Email"
-                className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 required
               />
             </div>
             <div>
               <label
-                htmlFor="password"
+                htmlFor="_password"
                 className="block text-sm font-medium text-gray-700"
               >
                 Password
               </label>
               <input
-                id="password"
+                id="_password"
+                name="_password"
                 type="password"
                 placeholder="Password"
-                className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 required
               />
             </div>
@@ -108,13 +98,14 @@ export default function Login() {
           <div className="mt-4">
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="w-full flex justify-center my-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Login
             </button>
+
             <button
-              onClick={() => handleLogout}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              onClick={() => handleLogout()}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Logout
             </button>
