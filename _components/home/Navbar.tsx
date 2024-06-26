@@ -45,10 +45,16 @@ export default function Navbar() {
             Home
           </Link>
           <Link
+            href="/login"
+            className="px-3 py-2 text-white text-sm font-semibold rounded-md hover:bg-acc2 hover:text-gray-800 dark:hover:text-white"
+          >
+            Contractor Login
+          </Link>
+          <Link
             href="/contractor"
             className="px-3 py-2 text-white text-sm font-semibold rounded-md hover:bg-acc2 hover:text-gray-800 dark:hover:text-white"
           >
-            Buy Leads
+            Register as a Contractor
           </Link>
         </div>
       </div>
