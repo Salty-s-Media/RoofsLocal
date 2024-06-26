@@ -16,7 +16,7 @@ export default async function handler(
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const { email, password } = req.body;
+  const { email, _password } = req.body;
 
   try {
     const contractor = await prisma.contractor.findUnique({
@@ -27,7 +27,7 @@ export default async function handler(
       return res.status(401).json({ error: "Invalid login credentials." });
     }
 
-    const isMatch = await bcrypt.compare(password, contractor.password);
+    const isMatch = await bcrypt.compare(_password, contractor.password);
 
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid login credentials." });
