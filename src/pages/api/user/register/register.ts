@@ -1,26 +1,66 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { encrypt } from "../../../../../utils/lib";
-import { cookies } from "next/headers";
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+import { serialize } from 'cookie';
+
+const prisma = new PrismaClient();
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { email, password } = req.body;
+  if (req.method !== "POST") {
+    res.setHeader("Allow", ["POST"]);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
 
-  const user = { email, password };
+  console.log("Request Body: ", req.body);
+  const {
+    firstName,
+    lastName,
+    company,
+    email,
+    phone,
+    zipCodes,
+    stripeId,
+    password,
+  } = req.body;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const sessionId = crypto.randomBytes(16).toString("hex");
+  const hashedSessionId = await bcrypt.hash(sessionId, 10);
+  const expires = new Date(Date.now() + 10 * 24 * 3600 * 1000);
 
   try {
-    // Create the session
-    const expires = new Date(Date.now() + 10 * 1000);
-    const session = await encrypt({ user, expires });
+    const contractor = await prisma.contractor.create({
+      data: {
+        firstName,
+        lastName,
+        company,
+        email,
+        phone,
+        zipCodes,
+        stripeId,
+        password: hashedPassword,
+        sessionId: hashedSessionId,
+        sessionExpiry: expires,
+      },
+    });
 
-    // Save the session in a cookie
-    cookies().set("session", session, { expires, httpOnly: true });
+    const cookieOptions = {
+      httpOnly: true,
+      expires,
+      path: '/',
+      sameSite: 'strict' as 'strict' | 'lax' | 'none',
+      secure: process.env.NODE_ENV === 'production'
+    };
+    const cookie = serialize('sessionId', sessionId, cookieOptions);
+    res.setHeader('Set-Cookie', cookie);
 
-    res.status(200).json({ message: "Login successful" });
+    res.status(201).json(contractor);
   } catch (error) {
-    console.error("Login Error: ", error);
-    res.status(500).json({ message: "Login failed" });
+    console.error(error);
+    res.status(500).json({ error: `Failed to register contractor: ${error}` });
   }
 }
