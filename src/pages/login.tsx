@@ -46,7 +46,9 @@ export default function Login() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch("/api/user/logout/logout");
+      const response = await fetch("/api/user/logout/logout", {
+        method: "POST",
+      });
 
       if (response.ok) {
         router.push("/");

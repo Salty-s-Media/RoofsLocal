@@ -138,7 +138,7 @@ export default function Success() {
         link.download = `contactsFound.csv`;
         document.body.appendChild(link);
         link.click();
-
+        console.log("evt fired");
         setTimeout(() => {
           setWaiting(false);
           setLoaded(true);
@@ -158,7 +158,7 @@ export default function Success() {
 
           <button
             className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded"
-            onClick={handleChargeLater}
+            onClick={() => handleChargeLater()}
           >
             {loaded ? `Successfully Billed` : `Search for Leads and Auto-Bill`}
           </button>
