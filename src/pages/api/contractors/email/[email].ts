@@ -39,26 +39,32 @@ export default async function handler(
       lastName,
       company,
       phone,
+      email,
       zipCodes,
       stripeId,
       password,
     } = req.body;
+
+    const data = {
+      ...(firstName !== undefined && { firstName }),
+      ...(lastName !== undefined && { lastName }),
+      ...(company !== undefined && { company }),
+      ...(phone !== undefined && { phone }),
+      ...(email !== undefined && { email }),
+      ...(zipCodes !== undefined && { zipCodes }),
+      ...(stripeId !== undefined && { stripeId }),
+      ...(password !== undefined && { password }),
+    };
+    console.log(decodedEmail);
+    console.log(data);
     try {
       const contractor = await prisma.contractor.update({
         where: { email: decodedEmail },
-        data: {
-          firstName,
-          lastName,
-          company,
-          phone,
-          zipCodes,
-          stripeId,
-          password,
-        },
+        data,
       });
       res.status(200).json(contractor);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update contractor" });
+      res.status(500).json({ error: 'Failed to update contractor' });
     }
   } else if (req.method === "DELETE") {
     try {

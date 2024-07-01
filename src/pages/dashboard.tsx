@@ -64,8 +64,8 @@ export default function Dashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // firstName: data.first,
-          // lastName: data.last,
+          firstName: data.first,
+          lastName: data.last,
           // zipCodes: [data.zip],
           email: data.email,
           password: data.password,
