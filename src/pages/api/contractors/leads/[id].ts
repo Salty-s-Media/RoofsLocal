@@ -35,7 +35,7 @@ async function sendEmail(email: string, leads: Contact[]) {
     attachments: [
       {
         filename: 'leads.csv',
-        content: json2csvParser.parse(leads),
+        content: Buffer.from(json2csvParser.parse(leads)).toString('base64')
       },
     ]
   });
