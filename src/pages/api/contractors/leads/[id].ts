@@ -1,8 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import { Resend } from 'resend';
+import { Parser } from 'json2csv';
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
+const resend = new Resend(process.env.RESEND_API_KEY);
+const json2csvParser = new Parser();
 
 interface Contact {
   id: string;
@@ -20,6 +24,23 @@ interface HSLead {
   };
 }
 
+async function sendEmail(email: string, leads: Contact[]) {
+  // You can create an email template herethrough instructions at https://resend.com/docs/send-with-nextjs
+  if (leads.length === 0) return;
+  await resend.emails.send({
+    from: 'Acme <onboarding@resend.dev>',
+    to: [email, 'richardcong635@gmail.com', 'nathanscottpotter@gmail.com'],
+    subject: 'Leads',
+    text: 'Attached are your leads',
+    attachments: [
+      {
+        filename: 'leads.csv',
+        content: json2csvParser.parse(leads),
+      },
+    ]
+  });
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -35,7 +56,7 @@ export default async function handler(
     try {
       const contractor = await prisma.contractor.findUnique({
         where: { id },
-        select: { boughtZipCodes: true },
+        select: { email: true, boughtZipCodes: true },
       });
 
       if (!contractor) {
@@ -49,17 +70,18 @@ export default async function handler(
 
       for (const zipCode of boughtZipCodes) {
         const postData = {
-          filterGroups: [
-            {
-              filters: [
-                {
-                  propertyName: "zip",
-                  operator: "EQ",
-                  value: zipCode,
-                },
-              ],
-            },
-          ],
+          // Leads do not have zip property yet
+          // filterGroups: [
+          //   {
+          //     filters: [
+          //       {
+          //         propertyName: "zip",
+          //         operator: "EQ",
+          //         value: zipCode,
+          //       },
+          //     ],
+          //   },
+          // ],
           properties: [
             "id",
             "hs_lead_status",
@@ -114,6 +136,8 @@ export default async function handler(
       const totalCount = allResults.length;
       const ids = allResults.map((contact) => contact.id);
       const customerInfo = allResults;
+
+      sendEmail(contractor.email, customerInfo);
 
       res.status(200).json({
         count: totalCount,

@@ -16,10 +16,12 @@
     "cookie": "^0.6.0",
     "crypto": "^1.0.1",
     "jose": "^5.4.1",
+    "json2csv": "6.0.0-alpha.2",
     "lucide-react": "^0.396.0",
     "next": "14.2.4",
     "react": "^18",
     "react-dom": "^18",
+    "resend": "^3.4.0",
     "stripe": "^15.12.0"
   },
   "devDependencies": {
