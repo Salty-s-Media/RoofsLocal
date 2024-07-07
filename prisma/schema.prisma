@@ -15,17 +15,18 @@ datasource db {
 }
 
 model Contractor {
-  id            String   @id @default(cuid())
-  firstName     String
-  lastName      String
-  company       String
-  email         String   @unique
-  phone         String
-  zipCodes      String[]
-  stripeId      String
-  password      String
-  sessionId     String   @unique
-  sessionExpiry DateTime
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  company        String
+  email          String   @unique
+  phone          String
+  zipCodes       String[]
+  boughtZipCodes String[]
+  stripeId       String
+  password       String
+  sessionId      String   @unique
+  sessionExpiry  DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
