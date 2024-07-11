@@ -25,7 +25,7 @@ interface HSLead {
 }
 
 async function sendEmail(email: string, leads: Contact[]) {
-  // You can create an email template herethrough instructions at https://resend.com/docs/send-with-nextjs
+  // You can create an email template here through instructions at https://resend.com/docs/send-with-nextjs
   if (leads.length === 0) return;
   await resend.emails.send({
     from: 'Acme <onboarding@resend.dev>',
@@ -70,18 +70,17 @@ export default async function handler(
 
       for (const zipCode of boughtZipCodes) {
         const postData = {
-          // Leads do not have zip property yet
-          // filterGroups: [
-          //   {
-          //     filters: [
-          //       {
-          //         propertyName: "zip",
-          //         operator: "EQ",
-          //         value: zipCode,
-          //       },
-          //     ],
-          //   },
-          // ],
+          filterGroups: [
+            {
+              filters: [
+                {
+                  propertyName: "zip",
+                  operator: "EQ",
+                  value: zipCode,
+                },
+              ],
+            },
+          ],
           properties: [
             "id",
             "hs_lead_status",
@@ -89,6 +88,7 @@ export default async function handler(
             "lastname",
             "email",
             "phone",
+            "zip",
           ],
         };
 
