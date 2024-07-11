@@ -3,8 +3,11 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { serialize } from 'cookie';
+import { Resend } from 'resend';
 
 const prisma = new PrismaClient();
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log(resend)
 
 export default async function handler(
   req: NextApiRequest,
@@ -31,6 +34,8 @@ export default async function handler(
   const sessionId = crypto.randomBytes(16).toString("hex");
   const hashedSessionId = await bcrypt.hash(sessionId, 10);
   const expires = new Date(Date.now() + 10 * 24 * 3600 * 1000);
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const hashedVerificationToken = await bcrypt.hash(verificationToken, 10);
 
   try {
     const contractor = await prisma.contractor.create({
@@ -45,6 +50,8 @@ export default async function handler(
         password: hashedPassword,
         sessionId: hashedSessionId,
         sessionExpiry: expires,
+        verificationToken: hashedVerificationToken,
+        isVerified: false,
       },
     });
 
@@ -57,6 +64,14 @@ export default async function handler(
     };
     const cookie = serialize('sessionId', sessionId, cookieOptions);
     res.setHeader('Set-Cookie', cookie);
+
+    const verificationUrl = `${process.env.BASE_URL}/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+    await resend.emails.send({
+      from: 'Acme <onboarding@resend.dev>',
+      to: [email],
+      subject: 'Email Verification',
+      text: `Please verify your email by clicking the following link: ${verificationUrl}`,
+    });
 
     res.status(201).json(contractor);
   } catch (error) {
