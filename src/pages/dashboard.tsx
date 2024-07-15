@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface UserData {
   company: string;
@@ -20,6 +20,8 @@ interface UserData {
 export default function Dashboard() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState<UserData>({} as UserData);
+  const zips = useRef([] as string[]);
+
   const router = useRouter();
 
   // check login anytime we're on the dashboard page, especially after a refresh
@@ -46,7 +48,30 @@ export default function Dashboard() {
   useEffect(() => {
     checkLogin();
     setLoaded(true);
+    zips.current = user.zipCodes;
   }, []);
+
+  const getMyOrders = async () => {
+    try {
+      const response = await fetch("/api/hubspot/get-purchased-leads", {
+        method: "POST",
+        headers: {
+          contentType: "application/json",
+        },
+        body: JSON.stringify({ zipCodes: zips.current }),
+      });
+
+      if (!response.ok) {
+        console.error("POST error", response.status);
+        return;
+      }
+
+      const result = await response.json();
+      console.log("Current Orders: ", result);
+    } catch (error) {
+      console.error("Get My Orders Error: ", error);
+    }
+  };
 
   const updateInfomation = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,16 +131,15 @@ export default function Dashboard() {
               <h1>Zip Codes</h1>
               <div>{user.zipCodes}</div>
               <br></br>
+              <button
+                onClick={getMyOrders}
+                className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
+              >
+                Get all Orders
+              </button>
             </div>
           </>
         )}
-        {/* // need to check login status before allowing form to be available. */}
-        {/* <button
-          onClick={checkLogin}
-          className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
-        >
-          Refresh User Info
-        </button> */}
         <form onSubmit={updateInfomation} className="bg-acc1 rounded-md p-8">
           <h1 className="mb-4 font-bold text-2xl">Update Information</h1>
           <label htmlFor="first" className="text-md font-bold text-white">

@@ -37,7 +37,7 @@ export default function Success() {
       console.log("Info Object: ", info);
       const companyName = info.company; // THIS IS UNDEFINED!!! FIX ASAP
       const companyEmail = info.email;
-      const zipCodes = info.zipCodes;
+      const zipCodes = info.zipCodes; // their unpaidfor zip codes
 
       console.log(
         `Company: ${companyName}, Email: ${companyEmail}, Zip Codes: ${zipCodes}`
@@ -51,6 +51,7 @@ export default function Success() {
         },
         body: JSON.stringify({ zipCodes }),
       });
+
       if (!leadData.ok) {
         console.error("POST error", leadData.status);
         return;
@@ -95,12 +96,29 @@ export default function Success() {
       });
 
       if (!charge.ok) {
-        console.error("HTTP error", charge.status);
+        // Return and do not assign the zip to the bought list.
+        console.error("Purchase Failed", charge.status);
         return;
       }
 
       const data = await charge.json();
       const { leads, amount, customerId } = data;
+
+      const updateZips = await fetch(`/api/contractors/email/${companyEmail}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ zipCodes }),
+      });
+
+      if (!updateZips.ok) {
+        console.error(
+          "Was unable to assign Zips after purchase.",
+          updateZips.status
+        );
+        return;
+      }
 
       const updateLeads = await fetch("/api/hubspot/update-leads", {
         method: "PATCH",
@@ -158,7 +176,7 @@ export default function Success() {
 
           <button
             className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded"
-            onClick={() => handleChargeLater()}
+            onClick={handleChargeLater}
           >
             {loaded ? `Successfully Billed` : `Search for Leads and Auto-Bill`}
           </button>
