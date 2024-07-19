@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/charge_users.ts",
-      "schedule": "45 1 * * *"
+      "path": "/api/cron/charge_users",
+      "schedule": "05 2 * * *"
     }
   ]
 }
