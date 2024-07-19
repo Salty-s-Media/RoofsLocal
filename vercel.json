@@ -1,7 +1,8 @@
 {
-  "functions": {
-    "api/cron/charge_users.ts": {
+  "crons": [
+    {
+      "path": "api/cron/charge_users.ts",
       "schedule": "25 18 * * *"
     }
-  }
+  ]
 }
