@@ -1,7 +1,13 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log('Cron job executed');
-
-  res.status(200).json({ message: 'Cron job executed successfully' });
+import type { NextApiRequest, NextApiResponse } from 'next';
+ 
+export default async function handler(
+  request: NextApiRequest,
+  response: NextApiResponse,
+) {
+  const result = await fetch(
+    'http://worldtimeapi.org/api/timezone/America/Chicago',
+  );
+  const data = await result.json();
+ 
+  return response.json({ datetime: data.datetime });
 }
