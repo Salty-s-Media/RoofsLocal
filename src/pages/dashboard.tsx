@@ -103,6 +103,9 @@ export default function Dashboard() {
 
       const result = await response.json();
       console.log("Updated User Info: ", result);
+
+      // set the new user info...
+      setUser(result);
     } catch (error) {
       console.error("Update Information Error: ", error);
     }
