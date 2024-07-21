@@ -24,7 +24,7 @@ export default function Success() {
     if (sessionId) {
       setWaiting(true);
       // get company name and zip codes from the company from prisma for counting results and updating hubspot.
-      const companyInfo = await fetch(`/api/contractors/email/${email}`, {
+      const companyInfo = await fetch(`/api/user/email/${email}`, {
         method: "GET",
       });
 
@@ -104,7 +104,7 @@ export default function Success() {
       const data = await charge.json();
       const { leads, amount, customerId } = data;
 
-      const updateZips = await fetch(`/api/contractors/email/${companyEmail}`, {
+      const updateZips = await fetch(`/api/user/email/${companyEmail}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

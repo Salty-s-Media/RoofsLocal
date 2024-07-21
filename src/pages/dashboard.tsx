@@ -83,7 +83,7 @@ export default function Dashboard() {
     const data = Object.fromEntries(formData.entries());
 
     try {
-      const response = await fetch(`/api/contractors/email/${user.email}`, {
+      const response = await fetch(`/api/user/email/${user.email}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
