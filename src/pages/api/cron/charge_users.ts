@@ -24,6 +24,7 @@ interface Contact {
 interface HSLead {
   id: string;
   properties: {
+    owner: string;
     hs_lead_status: string;
   };
 }
@@ -70,6 +71,48 @@ async function chargeContractor(stripeId: string, amount: number) {
   });
 }
 
+async function batchUpdateContacts(
+  contactIds: string[],
+  propertiesToUpdate: Partial<HSLead>
+) {
+  const updateRequests = contactIds.map((id) => ({
+    id,
+    properties: propertiesToUpdate.properties,
+  }));
+
+  const requestBody = {
+    inputs: updateRequests,
+  };
+
+  try {
+    const response = await fetch(
+      "https://api.hubapi.com/crm/v3/objects/contacts/batch/update",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const resp = await response.text();
+      throw new Error(
+        `Batch update failed with status ${response.status}: ${resp}`
+      );
+    }
+
+    const responseBody = await response.json();
+
+    return responseBody;
+  } catch (error) {
+    console.error("Error during batch update:", error);
+    throw error;
+  }
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -81,7 +124,7 @@ export default async function handler(
 
   try {
     const contractors = await prisma.contractor.findMany({
-      select: { email: true, boughtZipCodes: true, stripeId: true},
+      select: { email: true, boughtZipCodes: true, stripeId: true, company: true},
     });
 
     for (const contractor of contractors) {
@@ -145,6 +188,14 @@ export default async function handler(
           }));
 
           allResults = [...allResults, ...results];
+
+          const allResultsIds = allResults.map(result => result.id);
+          await batchUpdateContacts(allResultsIds, {
+            properties: {
+              owner: contractor.company,
+              hs_lead_status: "CONNECTED",
+            },
+          });
         } catch (error) {
           console.error(
             `Error processing zip code ${zipCode} from HubSpot:`,
