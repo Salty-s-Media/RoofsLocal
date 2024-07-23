@@ -91,7 +91,6 @@ export default function Dashboard() {
         body: JSON.stringify({
           firstName: data.first,
           lastName: data.last,
-          // zipCodes: [data.zip],
           email: data.email,
           password: data.password,
         }),
@@ -111,6 +110,65 @@ export default function Dashboard() {
     }
   };
 
+  const updateZipCodes = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    if (!formData) return;
+
+    const data = Object.fromEntries(formData.entries());
+
+    const zipCodes: string[] = [];
+
+    // First, get the entire list of existing zips.
+    try {
+      const companyInfo = await fetch(`/api/user/email/${user.email}`, {
+        method: "GET",
+      });
+
+      if (!companyInfo.ok) {
+        console.error("POST error", companyInfo.status);
+        return;
+      }
+
+      const info = await companyInfo.json();
+      // const companyName = info.company;
+      // const companyEmail = info.email;
+      zipCodes.push(...info.zipCodes); // push all the existing zip codes into the array
+    } catch (error) {
+      console.error("Update Information Error: ", error);
+    }
+
+    // Then, update the zip codes with the new zip codes by pushing in the new ones from the form data.
+    zipCodes.push(...(data.zipCodes as unknown as string).split(","));
+
+    console.log("updated zips: ", zipCodes);
+
+    try {
+      const response = await fetch(`/api/user/email/${user.email}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          zipCodes: zipCodes,
+          password: data.password, // required for the PUT request
+        }),
+      });
+
+      if (!response.ok) {
+        router.push("/");
+      }
+
+      const result = await response.json();
+      console.log("Updated Zip Codes: ", result);
+
+      setUser(result); // Display updated user info
+    } catch (error) {
+      console.error("Update Information Error: ", error);
+    }
+  };
   return (
     <div className="min-h-screen w-full justify-center flex flex-col my-6">
       <div className="ml-12 mr-12">
@@ -143,7 +201,11 @@ export default function Dashboard() {
             </div>
           </>
         )}
-        <form onSubmit={updateInfomation} className="bg-acc1 rounded-md p-8">
+        <br></br>
+        <form
+          onSubmit={updateInfomation}
+          className="bg-acc1 rounded-md p-8 max-w-[512px]"
+        >
           <h1 className="mb-4 font-bold text-2xl">Update Information</h1>
           <label htmlFor="first" className="text-md font-bold text-white">
             First
@@ -164,16 +226,6 @@ export default function Dashboard() {
             className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
             placeholder={`${user.lastName}`}
           />
-
-          {/* <label htmlFor="zip" className="text-md font-bold text-white">
-            Zip
-          </label>
-          <input
-            type="file"
-            name="zip"
-            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-          /> */}
-
           <label htmlFor="email" className="text-md font-bold text-white">
             Email
           </label>
@@ -183,7 +235,6 @@ export default function Dashboard() {
             placeholder={`${user.email}`}
             className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
           />
-
           <label htmlFor="password" className="text-md font-bold text-white">
             Password
           </label>
@@ -198,6 +249,37 @@ export default function Dashboard() {
             type="submit"
           >
             Update Information
+          </button>
+        </form>
+        <br></br>
+        <form
+          onSubmit={updateZipCodes}
+          className="bg-acc1 rounded-md p-8 max-w-[512px]"
+        >
+          <h1 className="mb-4 font-bold text-2xl">Update Zip Codes</h1>
+          <label htmlFor="zipCodes" className="text-md font-bold text-white">
+            Zip Codes
+          </label>
+          <input
+            type="text"
+            name="zipCodes"
+            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+            placeholder={`${user.zipCodes}`}
+          />
+          <label htmlFor="password" className="text-md font-bold text-white">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            required
+            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+          />
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
+            type="submit"
+          >
+            Update Zip Codes
           </button>
         </form>
       </div>
