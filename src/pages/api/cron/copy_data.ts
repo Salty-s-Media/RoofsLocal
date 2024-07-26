@@ -9,12 +9,7 @@ import { PrismaClient as PrismaClientProd } from '@prisma/client';
 import { PrismaClient as PrismaClientDev } from '@prisma-dev/client';
 
 const prismaProd = new PrismaClientProd();
-const prismaDev = new PrismaClientDev({ 
-  datasources: { 
-    db: { 
-      url: process.env.POSTGRES_DEV_PRISMA_URL, 
-      directUrl: process.env.POSTGRES_DEV_URL_NON_POOLING
-}}});
+const prismaDev = new PrismaClientDev();
 
 async function copyContractors() {
   const contractors = await prismaProd.contractor.findMany();
