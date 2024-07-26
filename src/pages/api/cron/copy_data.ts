@@ -22,6 +22,16 @@ async function copyContractors() {
 const HUBSPOT_SOURCE_API_KEY = process.env.HUBSPOT_API_KEY;
 const HUBSPOT_DEST_API_KEY = process.env.HUBSPOT_DEV_API_KEY;
 
+interface Contact {
+  properties: {
+    firstname: string;
+    lastname: string;
+    email: string;
+    phone: string;
+    zip: string;
+  };
+}
+
 async function fetchContacts() {
   const response = await fetch(
     `https://api.hubapi.com/crm/v3/objects/contacts?hapikey=${HUBSPOT_SOURCE_API_KEY}`
@@ -29,7 +39,7 @@ async function fetchContacts() {
   return response.json();
 }
 
-async function createContact(contactData) {
+async function createContact(contactData: Contact) {
   const response = await fetch(
     `https://api.hubapi.com/crm/v3/objects/contacts?hapikey=${HUBSPOT_DEST_API_KEY}`,
     {
