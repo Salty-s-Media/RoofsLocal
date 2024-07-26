@@ -56,7 +56,7 @@ async function createContact(contactData: Contact) {
 async function copyLeads() {
   const { results } = await fetchContacts();
     const createPromises = results.map(contact => {
-      const contactData = {
+      const contactData: Contact = {
         properties: {
           firstname: contact.properties.firstname,
           lastname: contact.properties.lastname,
