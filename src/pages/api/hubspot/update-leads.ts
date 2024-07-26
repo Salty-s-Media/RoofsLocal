@@ -37,7 +37,7 @@ async function batchUpdateContacts(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+          Authorization: `Bearer ${HUBSPOT_API_KEY}`, 
         },
         body: JSON.stringify(requestBody),
       }

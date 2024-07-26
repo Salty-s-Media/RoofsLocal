@@ -65,7 +65,7 @@ export default async function handler(
     const cookie = serialize('sessionId', sessionId, cookieOptions);
     res.setHeader('Set-Cookie', cookie);
 
-    const verificationUrl = `${process.env.BASE_URL}/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+    const verificationUrl = `${process.env.SERVER_URL}/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(email)}`;
     await resend.emails.send({
       from: 'Acme <onboarding@resend.dev>',
       to: [email],
