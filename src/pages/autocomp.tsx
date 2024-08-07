@@ -4,49 +4,75 @@ import React, { useEffect } from "react";
 
 export default function Auto() {
   useEffect(() => {
-    async function initMap() {
-      // Request needed libraries.
-      //@ts-ignore
-      await google.maps.importLibrary("places");
+    /**
+     * Demonstrates making a single request for Place predictions, then requests Place Details for the first result.
+     */
+    async function init() {
+      // @ts-ignore
+      const { Place, AutocompleteSessionToken, AutocompleteSuggestion } =
+        (await google.maps.importLibrary(
+          "places"
+        )) as google.maps.PlacesLibrary;
 
-      // Create the input HTML element, and append it.
-      //@ts-ignore
-      const placeAutocomplete = new google.maps.places.PlaceAutocompleteElement(
-        {}
+      // Add an initial request body.
+      let request = {
+        input: "Tadi",
+        locationRestriction: {
+          west: -122.44,
+          north: 37.8,
+          east: -122.39,
+          south: 37.78,
+        },
+        origin: { lat: 37.7893, lng: -122.4039 },
+        includedPrimaryTypes: ["restaurant"],
+        language: "en-US",
+        region: "us",
+      };
+
+      // Create a session token.
+      const token = new AutocompleteSessionToken();
+      // Add the token to the request.
+      // @ts-ignore
+      request.sessionToken = token;
+      // Fetch autocomplete suggestions.
+      const { suggestions } =
+        await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+
+      const title = document.getElementById("title") as HTMLElement;
+      title.appendChild(
+        document.createTextNode(
+          'Query predictions for "' + request.input + '":'
+        )
       );
 
-      //@ts-ignore
-      document.body.appendChild(placeAutocomplete);
+      for (let suggestion of suggestions) {
+        const placePrediction = suggestion.placePrediction;
 
-      // Inject HTML UI.
-      const selectedPlaceTitle = document.createElement("p");
+        // Create a new list element.
+        const listItem = document.createElement("li");
+        const resultsElement = document.getElementById(
+          "results"
+        ) as HTMLElement;
+        listItem.appendChild(
+          document.createTextNode(placePrediction!.text.toString())
+        );
+        resultsElement.appendChild(listItem);
+      }
 
-      selectedPlaceTitle.textContent = "";
-      document.body.appendChild(selectedPlaceTitle);
+      let place = suggestions[0].placePrediction!.toPlace(); // Get first predicted place.
+      await place.fetchFields({
+        fields: ["displayName", "formattedAddress"],
+      });
 
-      const selectedPlaceInfo = document.createElement("pre");
-
-      selectedPlaceInfo.textContent = "";
-      document.body.appendChild(selectedPlaceInfo);
-      // Add the gmp-placeselect listener, and display the results.
-      //@ts-ignore
-      placeAutocomplete.addEventListener(
-        "gmp-placeselect",
-        async ({ place }) => {
-          await place.fetchFields({
-            fields: ["displayName", "formattedAddress", "location"],
-          });
-          selectedPlaceTitle.textContent = "Selected Place:";
-          selectedPlaceInfo.textContent = JSON.stringify(
-            place.toJSON(),
-            /* replacer */ null,
-            /* space */ 2
-          );
-        }
-      );
+      const placeInfo = document.getElementById("prediction") as HTMLElement;
+      placeInfo.textContent =
+        "First predicted place: " +
+        place.displayName +
+        ": " +
+        place.formattedAddress;
     }
 
-    initMap();
+    init();
   }, []);
 
   return (
