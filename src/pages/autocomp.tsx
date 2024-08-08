@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect } from "react";
+import dynamic from "next/dynamic";
 
 declare global {
   interface Window {
-    init: () => void;
+    init: () => Promise<void>;
   }
 }
 
@@ -22,6 +23,11 @@ interface Request {
   region: string;
   sessionToken?: google.maps.places.AutocompleteSessionToken;
 }
+
+const DynamicGoogleMapsApi = dynamic(
+  () =>
+    import("https://maps.googleapis.com/maps/api/js?key=AIzaSyCRrEZcrzIK4iBN1aM8XI62OFLAbhXoreM&libraries=places")
+);
 
 export default function Auto() {
   useEffect(() => {
