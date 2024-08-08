@@ -1,13 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import dynamic from "next/dynamic";
-
-declare global {
-  interface Window {
-    init: () => Promise<void>;
-  }
-}
+import MapsScript from "../../utils/mapsScript";
 
 interface Request {
   input: string;
@@ -24,18 +18,8 @@ interface Request {
   sessionToken?: google.maps.places.AutocompleteSessionToken;
 }
 
-const DynamicGoogleMapsApi = dynamic(
-  () =>
-    import("https://maps.googleapis.com/maps/api/js?key=AIzaSyCRrEZcrzIK4iBN1aM8XI62OFLAbhXoreM&libraries=places")
-);
-
 export default function Auto() {
   useEffect(() => {
-    /**
-     * @license
-     * Copyright 2024 Google LLC. All Rights Reserved.
-     * SPDX-License-Identifier: Apache-2.0
-     */
     let title: HTMLElement | null;
     let results: HTMLElement | null;
     let input: HTMLInputElement | null;
@@ -133,7 +117,7 @@ export default function Auto() {
       return request;
     }
 
-    window.init = init;
+    init();
 
     // Cleanup event listener on component unmount
     return () => {
@@ -144,10 +128,17 @@ export default function Auto() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full justify-center flex flex-col my-6">
-      <h1 id="title">Google Places Autocomplete</h1>
-      <ul id="results"></ul>
-      <input type="text" placeholder="Enter a place" />
-    </div>
+    <>
+      <MapsScript />
+      <div className="min-h-screen w-full justify-center flex flex-col my-6 text-black">
+        <h1 id="title">Google Places Autocomplete</h1>
+        <input
+          style={{ color: "black" }}
+          type="text"
+          placeholder="Enter a place"
+        />
+        <ul id="results"></ul>
+      </div>
+    </>
   );
 }
