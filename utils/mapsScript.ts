@@ -9,7 +9,6 @@ export default function MapsScript() {
   useEffect(() => {
     const scriptEl = document.createElement("script");
 
-    scriptEl.async = false;
     scriptEl.defer = true;
 
     // Use dangerouslySetInnerHTML to inject the script content

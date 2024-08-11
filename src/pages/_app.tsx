@@ -8,10 +8,10 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       {/* <Navbar /> */}
-      <script
+      {/* <script
         type="text/javascript"
         src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyAXP_ydphQGqK2MFpFbVfjKsu5TYZKNSaA&libraries=places`}
-      />
+      /> */}
       <Component {...pageProps} />
       {/* <Footer /> */}
     </>
