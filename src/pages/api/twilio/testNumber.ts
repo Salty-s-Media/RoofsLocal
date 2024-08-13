@@ -15,8 +15,8 @@ export default async function handler(
 
     try {
       call = await client.calls.create({
-        from: "+987654321",
-        to: "+123456789",
+        from: "+19025415178",
+        to: "+16503028079",
         url: "http://demo.twilio.com/docs/voice.xml",
       });
     } catch (error) {
