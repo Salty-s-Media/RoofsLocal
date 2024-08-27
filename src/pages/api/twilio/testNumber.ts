@@ -19,6 +19,8 @@ export default async function handler(
         to: "+16503028079", // +16503028079 rc // +15005550006
         url: "http://demo.twilio.com/docs/voice.xml",
         machineDetection: "DetectMessageEnd",
+        statusCallback: `${process.env.NEXT_PUBLIC_SERVER_URL}/api/twilio/callStatus`,
+        statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
       });
     } catch (error) {
       console.error("Failed to create call:", error);
