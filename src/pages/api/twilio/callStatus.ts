@@ -14,8 +14,6 @@ export default async function handler(
     console.log(`From: ${From}`);
     console.log(`To: ${To}`);
 
-    // You can also store the data in a database or perform other actions here
-
     return res.status(200).json({ message: "Call status received" });
   } else {
     res.setHeader("Allow", ["POST"]);
