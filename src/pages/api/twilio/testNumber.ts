@@ -22,6 +22,7 @@ export default async function handler(
         machineDetection: "DetectMessageEnd",
         statusCallback: `${url}api/twilio/callStatus/`,
         statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+        statusCallbackMethod: "POST",
       });
     } catch (error) {
       console.error("Failed to create call:", error);
