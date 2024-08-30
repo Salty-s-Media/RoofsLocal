@@ -29,6 +29,7 @@ model Contractor {
   sessionExpiry     DateTime
   verificationToken String
   isVerified        Boolean  @default(false)
+  phoneVerified     Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { Resend } from 'resend';
 import { Parser } from 'json2csv';
 import Stripe from "stripe";
+import twilio from "twilio";
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
@@ -10,6 +11,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const json2csvParser = new Parser();
 const PRICE_PER_LEAD = parseFloat(process.env.PRICE_PER_LEAD || "1");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+const url = process.env.NEXT_PUBLIC_SERVER_URL;
 
 interface Contact {
   id: string;
@@ -128,6 +134,26 @@ export default async function handler(
     });
 
     for (const contractor of contractors) {
+      const { phoneVerified, phone } = contractor;
+      if (!phoneVerified) {
+        try {
+          const resp = await client.calls.create({
+            from: "+17543003917",
+            to: phone,
+            url: `http://demo.twilio.com/docs/voice.xml`,
+            machineDetection: "DetectMessageEnd",
+            statusCallback: `${url}api/twilio/callStatus`,
+            statusCallbackEvent: ["completed"],
+            statusCallbackMethod: "POST",
+          });
+        } catch (error) {
+          console.error("Failed to create call:", error);
+          await prisma.contractor.delete({
+            where: { email: contractor.email },
+          });
+          continue;
+        }
+      }
       const { email, boughtZipCodes } = contractor;
 
       let allResults: Contact[] = [];

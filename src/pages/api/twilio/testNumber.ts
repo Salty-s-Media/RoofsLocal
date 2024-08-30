@@ -17,11 +17,11 @@ export default async function handler(
     try {
       call = await client.calls.create({
         from: "+17543003917",
-        to: "+16503028079", // +16503028079 rc // +15005550006
+        to: "+16505555555", // +16503028079 rc // +15005550006
         url: "http://demo.twilio.com/docs/voice.xml",
         machineDetection: "DetectMessageEnd",
         statusCallback: `${url}api/twilio/callStatus`,
-        statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+        statusCallbackEvent: ["completed"],
         statusCallbackMethod: "POST",
       });
     } catch (error) {
