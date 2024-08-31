@@ -50,6 +50,8 @@ export default async function handler(
           "lastname",
           "email",
           "phone",
+          "job_status",
+          "plan",
         ],
       };
 
