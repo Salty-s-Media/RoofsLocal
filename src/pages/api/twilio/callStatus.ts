@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -12,11 +12,11 @@ export default async function handler(
     const to = To.startsWith("+")
       ? To.substring(2).replace(/[\(\)\-]/g, "")
       : To.replace(/[\(\)\-]/g, "");
-    
+
     console.log("Call status received for number: ", to);
 
     const updatedContractor = await prisma.contractor.update({
-      where: { phone: to },
+      where: { phone: to }, // TODO: Type '{ phone: any; }' is not assignable to type 'ContractorWhereUniqueInput'.
       data: { phoneVerified: true },
     });
 

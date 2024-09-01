@@ -1,7 +1,7 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { Resend } from 'resend';
-import { Parser } from 'json2csv';
+import { NextApiRequest, NextApiResponse } from "next";
+import { PrismaClient } from "@prisma/client";
+import { Resend } from "resend";
+import { Parser } from "json2csv";
 import Stripe from "stripe";
 import twilio from "twilio";
 
@@ -38,16 +38,18 @@ interface HSLead {
 function sendEmail(email: string, leads: Contact[]) {
   if (leads.length === 0) return;
   resend.emails.send({
-    from: 'Acme <onboarding@resend.dev>',
+    from: "Acme <onboarding@resend.dev>", // TODO: Change for production
     to: [email],
-    subject: 'Leads',
-    text: `Attached are your leads ${leads.length}. Your card on file will be charged ${leads.length * PRICE_PER_LEAD} USD.`,
+    subject: "Leads",
+    text: `Attached are your leads ${
+      leads.length
+    }. Your card on file will be charged ${leads.length * PRICE_PER_LEAD} USD.`,
     attachments: [
       {
-        filename: 'leads.csv',
-        content: Buffer.from(json2csvParser.parse(leads)).toString('base64')
+        filename: "leads.csv",
+        content: Buffer.from(json2csvParser.parse(leads)).toString("base64"), // Attach leads as CSV
       },
-    ]
+    ],
   });
 }
 
@@ -130,7 +132,14 @@ export default async function handler(
 
   try {
     const contractors = await prisma.contractor.findMany({
-      select: { email: true, boughtZipCodes: true, stripeId: true, company: true},
+      select: {
+        email: true,
+        boughtZipCodes: true,
+        stripeId: true,
+        company: true,
+        phone: true, // Add phone to the select
+        phoneVerified: true, // Add phoneVerified to the select
+      },
     });
 
     for (const contractor of contractors) {
@@ -215,7 +224,7 @@ export default async function handler(
 
           allResults = [...allResults, ...results];
 
-          const allResultsIds = allResults.map(result => result.id);
+          const allResultsIds = allResults.map((result) => result.id);
           await batchUpdateContacts(allResultsIds, {
             properties: {
               owner: contractor.company,
@@ -232,8 +241,10 @@ export default async function handler(
 
       sendEmail(email, allResults);
 
-      await chargeContractor(contractor.stripeId, allResults.length * PRICE_PER_LEAD);
-
+      await chargeContractor(
+        contractor.stripeId,
+        allResults.length * PRICE_PER_LEAD
+      );
     }
 
     res.status(200).json({ message: "Cron job executed successfully" });

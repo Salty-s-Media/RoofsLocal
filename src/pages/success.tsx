@@ -17,9 +17,10 @@ export default function Success() {
   useEffect(() => {
     email = localStorage.getItem("email") as string;
     const urlParams = new URLSearchParams(window.location.search);
-    sessionId = urlParams.get("session_id") || "";
+    sessionId = urlParams.get("session_id") || ""; // TODO: investigate the usage of stripe provided session_id
   }, []);
 
+  // TODO: Migrate this entire function to the dashboard page.
   const handleChargeLater = async () => {
     if (sessionId) {
       setWaiting(true);
@@ -35,7 +36,7 @@ export default function Success() {
 
       const info = await companyInfo.json();
       console.log("Info Object: ", info);
-      const companyName = info.company; // THIS IS UNDEFINED!!! FIX ASAP
+      const companyName = info.company; // TODO: THIS IS UNDEFINED!!! FIX ASAP
       const companyEmail = info.email;
       const zipCodes = info.zipCodes; // their unpaidfor zip codes
 
