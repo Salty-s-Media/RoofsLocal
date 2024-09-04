@@ -2,12 +2,12 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { serialize } from 'cookie';
-import { Resend } from 'resend';
+import { serialize } from "cookie";
+import { Resend } from "resend";
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
-console.log(resend)
+console.log(resend);
 
 export default async function handler(
   req: NextApiRequest,
@@ -58,18 +58,22 @@ export default async function handler(
     const cookieOptions = {
       httpOnly: true,
       expires,
-      path: '/',
-      sameSite: 'strict' as 'strict' | 'lax' | 'none',
-      secure: process.env.NODE_ENV === 'production'
+      path: "/",
+      sameSite: "strict" as "strict" | "lax" | "none",
+      secure: process.env.NODE_ENV === "production",
     };
-    const cookie = serialize('sessionId', sessionId, cookieOptions);
-    res.setHeader('Set-Cookie', cookie);
+    const cookie = serialize("sessionId", sessionId, cookieOptions);
+    res.setHeader("Set-Cookie", cookie);
 
-    const verificationUrl = `${process.env.BASE_URL}/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+    const verificationUrl = `${
+      process.env.BASE_URL
+    }/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(
+      email
+    )}`;
     await resend.emails.send({
-      from: 'Acme <onboarding@resend.dev>',
+      from: "Roofs Local <info@roofslocal.com>",
       to: [email],
-      subject: 'Email Verification',
+      subject: "Email Verification",
       text: `Please verify your email by clicking the following link: ${verificationUrl}`,
     });
 

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
-import { Resend } from 'resend';
-import { Parser } from 'json2csv';
+import { Resend } from "resend";
+import { Parser } from "json2csv";
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
@@ -28,16 +28,16 @@ async function sendEmail(email: string, leads: Contact[]) {
   // You can create an email template here through instructions at https://resend.com/docs/send-with-nextjs
   if (leads.length === 0) return;
   await resend.emails.send({
-    from: 'Acme <onboarding@resend.dev>',
-    to: [email, 'richardcong635@gmail.com', 'nathanscottpotter@gmail.com'],
-    subject: 'Leads',
-    text: 'Attached are your leads',
+    from: "Roofs Local <info@roofslocal.com>",
+    to: [email, "richardcong635@gmail.com", "nathanscottpotter@gmail.com"],
+    subject: "Leads",
+    text: "Attached are your leads",
     attachments: [
       {
-        filename: 'leads.csv',
-        content: Buffer.from(json2csvParser.parse(leads)).toString('base64')
+        filename: "leads.csv",
+        content: Buffer.from(json2csvParser.parse(leads)).toString("base64"),
       },
-    ]
+    ],
   });
 }
 
@@ -115,8 +115,7 @@ export default async function handler(
           const data = await hubspotResponse.json();
 
           const filteredResults = data.results.filter(
-            (contact: HSLead) =>
-              contact.properties.hs_lead_status === "OPEN"
+            (contact: HSLead) => contact.properties.hs_lead_status === "OPEN"
           );
 
           const results = filteredResults.map((contact: Contact) => ({
