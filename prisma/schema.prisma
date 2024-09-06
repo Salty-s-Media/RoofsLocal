@@ -20,7 +20,7 @@ model Contractor {
   lastName          String
   company           String
   email             String   @unique
-  phone             String
+  phone             String   @unique
   zipCodes          String[]
   boughtZipCodes    String[]
   stripeId          String

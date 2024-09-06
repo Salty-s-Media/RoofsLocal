@@ -16,7 +16,7 @@ export default async function handler(
     console.log("Call status received for number: ", to);
 
     const updatedContractor = await prisma.contractor.update({
-      where: { phone: to }, // TODO: Type '{ phone: any; }' is not assignable to type 'ContractorWhereUniqueInput'.
+      where: { phone: to },
       data: { phoneVerified: true },
     });
 
