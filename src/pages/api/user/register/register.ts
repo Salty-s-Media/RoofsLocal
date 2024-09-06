@@ -70,12 +70,14 @@ export default async function handler(
     }/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(
       email
     )}`;
-    await resend.emails.send({
+    const resp = await resend.emails.send({
       from: "Roofs Local <info@roofslocal.com>",
       to: [email],
       subject: "Email Verification",
       text: `Please verify your email by clicking the following link: ${verificationUrl}`,
     });
+
+    console.log("Resend response: ", resp);
 
     res.status(201).json(contractor);
   } catch (error) {
