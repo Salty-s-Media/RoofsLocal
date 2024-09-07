@@ -38,7 +38,7 @@ interface HSLead {
 function sendEmail(email: string, leads: Contact[]) {
   if (leads.length === 0) return;
   resend.emails.send({
-    from: "Roofs Local <info@roofslocal.com>", // TODO: Change for production
+    from: "Roofs Local <info@roofslocal.app>", // TODO: Change for production
     to: [email],
     subject: "Leads",
     text: `Attached are your leads ${

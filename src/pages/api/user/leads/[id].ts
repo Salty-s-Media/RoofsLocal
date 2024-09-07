@@ -28,7 +28,7 @@ async function sendEmail(email: string, leads: Contact[]) {
   // You can create an email template here through instructions at https://resend.com/docs/send-with-nextjs
   if (leads.length === 0) return;
   await resend.emails.send({
-    from: "Roofs Local <info@roofslocal.com>",
+    from: "Roofs Local <info@roofslocal.app>",
     to: [email, "richardcong635@gmail.com", "nathanscottpotter@gmail.com"],
     subject: "Leads",
     text: "Attached are your leads",
