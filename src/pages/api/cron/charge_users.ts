@@ -77,6 +77,13 @@ async function chargeContractor(sessionId: string, amount: number) {
       allow_redirects: "never",
     },
   });
+
+  console.log(
+    "Leads were found for your area, and you were billed $",
+    (amount / 100).toFixed(2)
+  );
+
+  return payment;
 }
 
 async function batchUpdateContacts(
@@ -241,10 +248,15 @@ export default async function handler(
 
       sendEmail(email, allResults);
 
-      await chargeContractor(
+      const payment = await chargeContractor(
         contractor.sessionId,
         allResults.length * PRICE_PER_LEAD
       );
+
+      if (payment.status != "succeeded") {
+        console.error("Payment didn't process:", payment.status);
+        res.status(204).json({ message: "Returned no results" });
+      }
     }
 
     res.status(200).json({ message: "Cron job executed successfully" });
