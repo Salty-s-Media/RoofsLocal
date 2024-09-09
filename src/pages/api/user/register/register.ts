@@ -66,7 +66,7 @@ export default async function handler(
     res.setHeader("Set-Cookie", cookie);
 
     const verificationUrl = `${
-      process.env.BASE_URL
+      process.env.NEXT_PUBLIC_SERVER_URL
     }/api/auth/verify?token=${verificationToken}&email=${encodeURIComponent(
       email
     )}`;
