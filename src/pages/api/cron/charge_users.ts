@@ -53,9 +53,9 @@ function sendEmail(email: string, leads: Contact[]) {
   });
 }
 
-async function chargeContractor(stripeId: string, amount: number) {
+async function chargeContractor(sessionId: string, amount: number) {
   // Retrieve the Session from the success URL, and charge customer;
-  const currentSession = await stripe.checkout.sessions.retrieve(stripeId);
+  const currentSession = await stripe.checkout.sessions.retrieve(sessionId);
   const setupIntentId = currentSession.setup_intent;
   const customerId = currentSession.customer;
 
@@ -135,7 +135,7 @@ export default async function handler(
       select: {
         email: true,
         boughtZipCodes: true,
-        stripeId: true,
+        sessionId: true,
         company: true,
         phone: true, // Add phone to the select
         phoneVerified: true, // Add phoneVerified to the select
@@ -242,7 +242,7 @@ export default async function handler(
       sendEmail(email, allResults);
 
       await chargeContractor(
-        contractor.stripeId,
+        contractor.sessionId,
         allResults.length * PRICE_PER_LEAD
       );
     }
