@@ -76,6 +76,7 @@ async function chargeContractor(sessionId: string, amount: number) {
       enabled: true,
       allow_redirects: "never",
     },
+    setup_future_usage: "off_session",
   });
 
   console.log(
