@@ -32,7 +32,7 @@ export default async function handler(
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const sessionId = crypto.randomBytes(16).toString("hex");
-  const hashedSessionId = await bcrypt.hash(sessionId, 10);
+  // const hashedSessionId = await bcrypt.hash(sessionId, 10);
   const expires = new Date(Date.now() + 10 * 24 * 3600 * 1000);
   const verificationToken = crypto.randomBytes(32).toString("hex");
   const hashedVerificationToken = await bcrypt.hash(verificationToken, 10);
@@ -48,7 +48,7 @@ export default async function handler(
         zipCodes,
         stripeId,
         password: hashedPassword,
-        sessionId: hashedSessionId,
+        sessionId: sessionId,
         sessionExpiry: expires,
         verificationToken: hashedVerificationToken,
         isVerified: false,
