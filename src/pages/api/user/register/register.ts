@@ -71,7 +71,7 @@ export default async function handler(
       email
     )}`;
     const resp = await resend.emails.send({
-      from: "Roofs Local <onboaring@resend.dev>",
+      from: "Roofs Local <info@roofslocal.app>",
       to: [email],
       subject: "Email Verification",
       text: `Please verify your email by clicking the following link: ${verificationUrl}`,
