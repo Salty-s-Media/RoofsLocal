@@ -9,7 +9,6 @@ interface FormStruct {
   phone: string;
   company: string;
   zipCodes: string[];
-  stripeId: string;
 }
 
 export default function ContractorRegistration() {
@@ -50,7 +49,6 @@ export default function ContractorRegistration() {
       if (resp.status === 200) {
         const responseData = await resp.json();
         const checkoutUrl = responseData.url as string;
-        const stripeId = responseData.stripeId as string;
 
         const resp1 = await fetch("/api/user/register/register", {
           method: "POST",
@@ -64,7 +62,6 @@ export default function ContractorRegistration() {
             phone: data.phone,
             company: companyName,
             zipCodes: [data.zipCode],
-            stripeId: stripeId,
             password: data.password,
           }),
         });

@@ -143,7 +143,7 @@ export default async function handler(
       select: {
         email: true,
         boughtZipCodes: true,
-        sessionId: true,
+        stripeId: true,
         company: true,
         phone: true, // Add phone to the select
         phoneVerified: true, // Add phoneVerified to the select
@@ -250,7 +250,7 @@ export default async function handler(
       sendEmail(email, allResults);
 
       const payment = await chargeContractor(
-        contractor.sessionId,
+        contractor.stripeId,
         allResults.length * PRICE_PER_LEAD
       );
 

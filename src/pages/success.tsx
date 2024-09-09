@@ -7,7 +7,21 @@ export default function Success() {
   const router = useRouter();
   const [remainingTime, setRemainingTime] = useState(3);
 
+  const saveId = async () => {
+    const email = localStorage.getItem("email") as string;
+    const urlParams = new URLSearchParams(window.location.search);
+    const stripeId = urlParams.get("session_id") || "";
+    await fetch (`/api/user/email/${email}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ stripeId }),
+    });
+  };
+
   useEffect(() => {
+    saveId();
     setTimeout(() => {
       router.push("/login");
     }, remainingTime * 1000);

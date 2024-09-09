@@ -26,7 +26,6 @@ export default async function handler(
     email,
     phone,
     zipCodes,
-    stripeId,
     password,
   } = req.body;
 
@@ -46,7 +45,7 @@ export default async function handler(
         email,
         phone,
         zipCodes,
-        stripeId,
+        stripeId: "",
         password: hashedPassword,
         sessionId: sessionId,
         sessionExpiry: expires,
