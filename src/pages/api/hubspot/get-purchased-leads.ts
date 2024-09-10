@@ -44,8 +44,6 @@ export default async function handler(
           },
         ],
         properties: [
-          "id",
-          "hs_lead_status",
           "firstname",
           "lastname",
           "email",
