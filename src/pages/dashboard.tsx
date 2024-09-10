@@ -17,9 +17,23 @@ interface UserData {
   zipCodes: string[];
 }
 
+interface Contact {
+  createdate: string,
+  email: string,
+  firstname: string,
+  hs_object_id: string,
+  id: string,
+  job_status: string | null,
+  lastmodifieddate: string,
+  lastname: string,
+  phone: string,
+  plan: string | null,
+}
+
 export default function Dashboard() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState<UserData>({} as UserData);
+  const [leads, setLeads] = useState([] as Contact[]);
   const zips = useRef([] as string[]);
 
   const router = useRouter();
@@ -58,7 +72,7 @@ export default function Dashboard() {
         headers: {
           contentType: "application/json",
         },
-        body: JSON.stringify({ zipCodes: zips.current }),
+        body: JSON.stringify({ zipCodes: user.zipCodes }),
       });
 
       if (!response.ok) {
@@ -67,7 +81,7 @@ export default function Dashboard() {
       }
 
       const result = await response.json();
-      console.log("Current Orders: ", result);
+      setLeads(result.customerInfo);
     } catch (error) {
       console.error("Get My Orders Error: ", error);
     }
@@ -193,6 +207,19 @@ export default function Dashboard() {
               <h1>Zip Codes</h1>
               <div>{user.zipCodes}</div>
               <br></br>
+              <br></br>
+              <h2 className="text-2xl font-semibold mt-4">Orders</h2>
+              <div>
+                {leads.map((contact) => (
+                  <div key={contact.id}>
+                    <p>First Name: {contact.firstname}</p>
+                    <p>Last Name: {contact.lastname}</p>
+                    <p>Email: {contact.email}</p>
+                    <p>Phone: {contact.phone}</p>
+                    <br></br>
+                  </div>
+                ))}
+              </div>
               <button
                 onClick={getMyOrders}
                 className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"

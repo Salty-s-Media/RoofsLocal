@@ -18,12 +18,31 @@ interface HSLead {
   };
 }
 
+interface ZipCodes {
+  zipCodes: string[];
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   if (req.method === "POST") {
-    const { zipCodes } = req.body;
+    console.log("Getting purchased leads")
+    let zipCodes: string[] = [];
+    try {
+      if (typeof req.body === 'string') {
+        const parsedBody = JSON.parse(req.body);
+        zipCodes = parsedBody.zipCodes;
+      } else {
+        zipCodes = req.body.zipCodes;
+      }
+    } catch (error) {
+      console.error("Error parsing JSON:", error);
+      res.status(400).json({ error: "Invalid JSON" });
+      return;
+    }
+
+    console.log("Zip Codes: ", zipCodes);
 
     // Initialize an array to hold all results
     let allResults: Contact[] = [];
@@ -39,6 +58,11 @@ export default async function handler(
                 propertyName: "zip",
                 operator: "EQ",
                 value: zipCode,
+              },
+              {
+                propertyName: "hs_lead_status",
+                operator: "EQ",
+                value: "CONNECTED",
               },
             ],
           },
@@ -74,14 +98,11 @@ export default async function handler(
         }
 
         const data = await hubspotResponse.json();
-
-        // Filter first by CONNECTED leads - Here we want to return all the purchased leads.
-        const filteredResults = data.results.filter(
-          (contact: HSLead) => contact.properties.hs_lead_status === "CONNECTED"
-        );
+        data.results.map((contact: Contact) => { console.log(contact['properties']) });
+        console.log("HubSpot Response: ", data);
 
         // Map the filtered results to the desired output format
-        const results = filteredResults.map((contact: Contact) => ({
+        const results = data.results.map((contact: Contact) => ({
           id: contact.id,
           ...contact.properties,
         }));
