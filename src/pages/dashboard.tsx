@@ -183,11 +183,7 @@ export default function Dashboard() {
               <p>Email: {user.email}</p>
               <p>Phone: {user.phone}</p>
               <p>Zip Codes:</p>
-              <ul className="list-disc list-inside p-4">
-                {user.zipCodes.map((zip) => (
-                  <li key={zip}>{zip}</li>
-                ))}
-              </ul>
+              <p>{user.zipCodes}</p>
               <br></br>
               <h3>Account Information</h3>
               <p>Created: {user.createdAt}</p>
