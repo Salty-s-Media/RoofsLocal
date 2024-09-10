@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const resend = new Resend(process.env.RESEND_API_KEY);
 const json2csvParser = new Parser();
-const PRICE_PER_LEAD = parseFloat(process.env.PRICE_PER_LEAD || "1");
+const PRICE_PER_LEAD = parseFloat(process.env.PRICE_PER_LEAD || "100");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -101,6 +101,7 @@ async function batchUpdateContacts(
   };
 
   try {
+    console.log(requestBody);
     const response = await fetch(
       "https://api.hubapi.com/crm/v3/objects/contacts/batch/update",
       {
@@ -121,7 +122,7 @@ async function batchUpdateContacts(
     }
 
     const responseBody = await response.json();
-
+    console.log("Batch update response:", responseBody);
     return responseBody;
   } catch (error) {
     console.error("Error during batch update:", error);
@@ -212,6 +213,8 @@ export default async function handler(
             }
           );
 
+          console.log(hubspotResponse);
+
           if (!hubspotResponse.ok) {
             const errorBody = await hubspotResponse.text();
             throw new Error(
@@ -248,15 +251,17 @@ export default async function handler(
       }
 
       sendEmail(email, allResults);
+      const cost = allResults.length * PRICE_PER_LEAD;
 
-      const payment = await chargeContractor(
-        contractor.stripeId,
-        allResults.length * PRICE_PER_LEAD
-      );
-
-      if (payment.status != "succeeded") {
-        console.error("Payment didn't process:", payment.status);
-        res.status(204).json({ message: "Returned no results" });
+      if (allResults.length > 0) {
+        const payment = await chargeContractor(
+          contractor.stripeId,
+          cost
+        );
+        if (payment.status != "succeeded") {
+          console.error("Payment didn't process:", payment.status);
+          res.status(204).json({ message: "Returned no results" });
+        }
       }
     }
 

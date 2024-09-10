@@ -51,6 +51,7 @@ export default async function handler(
         sessionExpiry: expires,
         verificationToken: hashedVerificationToken,
         isVerified: false,
+        boughtZipCodes: zipCodes
       },
     });
 
