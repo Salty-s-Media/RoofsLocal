@@ -3,7 +3,22 @@ import { NextApiRequest, NextApiResponse } from 'next';
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 
 interface WebhookData {
-  objectId: string;
+  total: number,
+  results: [
+    {
+      id: string;
+      properties: {
+        id: string;
+        hs_lead_status: string;
+        firstname: string;
+        lastname: string;
+        email: string;
+        phone: string;
+        plan: string | null;
+        job_status: string | null;
+      }
+    }
+  ]
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -19,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           {
             filters: [
               {
-                propertyName: "id",
+                propertyName: "hs_object_id",
                 operator: "EQ",
                 value: body.objectId,
               },
@@ -28,13 +43,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ],
         properties: [
           "id",
-          // "hs_lead_status",
+          "hs_lead_status",
           "firstname",
           "lastname",
           "email",
           "phone",
-          // "plan",
-          // "job_status",
+          "plan",
+          "job_status",
         ],
       };
 
@@ -58,9 +73,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           );
         }
 
-        const data = await hubspotResponse.json();
+        const data: WebhookData = await hubspotResponse.json();
+        const lead = data.results[0].properties;
 
-        console.log('New lead data from webhook: ', data);
+        console.log('New lead data from webhook: ', lead);
       } catch (error) {
         console.error(
           `Error processing webhook data from HubSpot:`,
