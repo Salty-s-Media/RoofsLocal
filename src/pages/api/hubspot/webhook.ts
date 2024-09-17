@@ -28,10 +28,12 @@ interface WebhookData {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
+    await new Promise(resolve => setTimeout(resolve, 5000));
     const { body } = req;
 
     console.log('Webhook received:', body[0]);
     const objectId: string = body[0].objectId;
+    console.log('Object ID:', objectId);
 
     const postData = {
       filterGroups: [
@@ -123,7 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error(
         `Error processing webhook data from HubSpot:`,
-        body.objectId, error
+        objectId, error
       );
     }
 
