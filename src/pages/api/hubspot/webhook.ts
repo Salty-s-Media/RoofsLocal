@@ -30,7 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'POST') {
     const { body } = req;
 
-    console.log('Webhook received:', body);
+    console.log('Webhook received:', body[0]);
+    const objectId = body[0].objectId;
 
     const postData = {
       filterGroups: [
@@ -39,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             {
               propertyName: "hs_object_id",
               operator: "EQ",
-              value: body.objectId,
+              value: objectId,
             },
           ],
         },
@@ -79,6 +80,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const data: WebhookData = await hubspotResponse.json();
+      if (data.total === 0) {
+        throw new Error(`No contact found with hs_object_id: ${objectId}`);
+      }
       const lead = data.results[0].properties;
 
       console.log('New lead data from webhook: ', lead);
