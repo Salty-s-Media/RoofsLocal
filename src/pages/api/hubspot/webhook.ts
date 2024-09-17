@@ -17,8 +17,8 @@ interface WebhookData {
         phone: string;
         plan: string | null;
         job_status: string | null;
-        createdate: string;
-        lastmodifieddate: string;
+        createdate?: string;
+        lastmodifieddate?: string;
         zip: string | null;
         company: string | null;
       }
