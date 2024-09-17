@@ -62,6 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     try {
+      console.log(postData);
       const hubspotResponse = await fetch(
         "https://api.hubapi.com/crm/v3/objects/contacts/search",
         {
@@ -74,12 +75,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       );
 
+      console.log(hubspotResponse);
       if (!hubspotResponse.ok) {
         const errorBody = await hubspotResponse.text();
         throw new Error(
           `HubSpot API request failed with status ${hubspotResponse.status}: ${errorBody}`
         );
       }
+      console.log('HubSpot response received');
 
       const data: WebhookData = await hubspotResponse.json();
       console.log(data);
