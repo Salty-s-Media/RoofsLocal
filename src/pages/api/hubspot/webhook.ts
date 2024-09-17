@@ -82,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           `HubSpot API request failed with status ${hubspotResponse.status}: ${errorBody}`
         );
       }
-      console.log('HubSpot response received');
+      console.log('HubSpot response received:', hubspotResponse.json());
 
       const data: WebhookData = await hubspotResponse.json();
       console.log(data);
