@@ -15,12 +15,12 @@ interface WebhookData {
         lastname: string;
         email: string;
         phone: string;
-        plan: string | null;
-        job_status: string | null;
+        plan?: string | null;
+        job_status?: string | null;
         createdate?: string;
         lastmodifieddate?: string;
         zip: string | null;
-        company: string | null;
+        company?: string | null;
       }
     }
   ]
