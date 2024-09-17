@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { body } = req;
 
     console.log('Webhook received:', body[0]);
-    const objectId = body[0].objectId;
+    const objectId: string = body[0].objectId;
 
     const postData = {
       filterGroups: [
