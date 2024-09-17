@@ -80,6 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const data: WebhookData = await hubspotResponse.json();
+      console.log(data);
       if (data.total === 0) {
         throw new Error(`No contact found with hs_object_id: ${objectId}`);
       }
