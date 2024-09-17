@@ -82,9 +82,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           `HubSpot API request failed with status ${hubspotResponse.status}: ${errorBody}`
         );
       }
-      console.log('HubSpot response received:', hubspotResponse.json());
+      const data = await hubspotResponse.json();
+      console.log('HubSpot response received:', data);
 
-      const data: WebhookData = await hubspotResponse.json();
       console.log(data);
       if (data.total === 0) {
         throw new Error(`No contact found with hs_object_id: ${objectId}`);
