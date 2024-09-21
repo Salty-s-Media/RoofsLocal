@@ -75,7 +75,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       );
 
-      console.log(hubspotResponse);
       if (!hubspotResponse.ok) {
         const errorBody = await hubspotResponse.text();
         throw new Error(
@@ -85,7 +84,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const data = await hubspotResponse.json();
       console.log('HubSpot response received:', data);
 
-      console.log(data);
       if (data.total === 0) {
         throw new Error(`No contact found with hs_object_id: ${objectId}`);
       }
@@ -101,8 +99,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const createData = {
         properties: lead
       }
-
-      console.log(createData)
 
       const createContactResponse = await fetch(
         "https://api.hubapi.com/crm/v3/objects/contacts",
