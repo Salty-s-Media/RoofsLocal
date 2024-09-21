@@ -28,6 +28,7 @@ interface WebhookData {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
+    await new Promise(resolve => setTimeout(resolve, 5000));
     const { body } = req;
 
     console.log('Webhook received:', body[0]);
