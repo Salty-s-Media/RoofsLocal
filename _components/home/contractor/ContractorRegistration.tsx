@@ -63,6 +63,7 @@ export default function ContractorRegistration() {
             company: companyName,
             zipCodes: [data.zipCode],
             password: data.password,
+            hubspotKey: data.hubspotKey,
           }),
         });
 
@@ -201,6 +202,22 @@ export default function ContractorRegistration() {
                 placeholder="Company Name"
                 maxLength={32}
                 required
+                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="hubspotKey"
+                className="block text-sm font-medium text-gray-800"
+              >
+                Hubspot Key
+              </label>
+              <input
+                id="hubspotKey"
+                name="hubspotKey"
+                type="text"
+                placeholder="Hubspot API Key"
+                maxLength={32}
                 className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />
             </div>
