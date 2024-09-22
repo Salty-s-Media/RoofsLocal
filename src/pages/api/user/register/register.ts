@@ -27,6 +27,7 @@ export default async function handler(
     phone,
     zipCodes,
     password,
+    hubspotKey
   } = req.body;
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -51,7 +52,8 @@ export default async function handler(
         sessionExpiry: expires,
         verificationToken: hashedVerificationToken,
         isVerified: false,
-        boughtZipCodes: zipCodes
+        boughtZipCodes: zipCodes,
+        hubspotKey
       },
     });
 
