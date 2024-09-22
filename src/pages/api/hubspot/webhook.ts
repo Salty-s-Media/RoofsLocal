@@ -1,7 +1,8 @@
+import { PrismaClient } from '@prisma/client';
 import { NextApiRequest, NextApiResponse } from 'next';
 
+const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
-const CONTRACTOR_API_KEY = process.env.DEMO_HUBSPOT_API_KEY;
 
 interface WebhookData {
   total: number,
@@ -90,6 +91,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const lead = data.results[0].properties;
 
       console.log('New lead data from webhook: ', lead);
+
+      const zip = lead.zip;
+      const contractor = await prisma.contractor.findFirst({
+        where: {
+          zipCodes: {
+            has: zip,
+          },
+        },
+      });
+
+      const contractorKey = contractor?.hubspotKey;
+
+      if (!contractor) {
+        throw new Error(`No contractor found for zip code: ${zip}`);
+      }
       
       delete lead.createdate;
       delete lead.lastmodifieddate;
@@ -106,7 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${CONTRACTOR_API_KEY}`,
+            Authorization: `Bearer ${contractorKey}`,
           },
           body: JSON.stringify(createData),
         }
