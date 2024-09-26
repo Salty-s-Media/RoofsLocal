@@ -1,7 +1,7 @@
 export default function Testing() {
   const handleReq = async () => {
     try {
-      const resp = await fetch("/api/twilio/testNumber", {
+      const resp = await fetch("/api/twilio/sendSMS", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -12,7 +12,7 @@ export default function Testing() {
         console.log(responseData);
       }
     } catch (error) {
-      console.error("Failed to create call:", error);
+      console.error("Failed to create sms:", error);
     }
   };
 

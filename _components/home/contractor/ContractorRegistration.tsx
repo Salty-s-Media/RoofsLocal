@@ -210,7 +210,7 @@ export default function ContractorRegistration() {
                 htmlFor="hubspotKey"
                 className="block text-sm font-medium text-gray-800"
               >
-                Hubspot Key
+                Hubspot Key (Optional)
               </label>
               <input
                 id="hubspotKey"

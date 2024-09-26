@@ -18,16 +18,16 @@ interface UserData {
 }
 
 interface Contact {
-  createdate: string,
-  email: string,
-  firstname: string,
-  hs_object_id: string,
-  id: string,
-  job_status: string | null,
-  lastmodifieddate: string,
-  lastname: string,
-  phone: string,
-  plan: string | null,
+  createdate: string;
+  email: string;
+  firstname: string;
+  hs_object_id: string;
+  id: string;
+  job_status: string | null;
+  lastmodifieddate: string;
+  lastname: string;
+  phone: string;
+  plan: string | null;
 }
 
 export default function Dashboard() {
@@ -94,6 +94,8 @@ export default function Dashboard() {
 
     if (!formData) return;
 
+    event.currentTarget.reset();
+
     const data = Object.fromEntries(formData.entries());
 
     try {
@@ -124,12 +126,48 @@ export default function Dashboard() {
     }
   };
 
+  const submitHubspotKey = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    event.currentTarget.reset();
+
+    if (!formData) return;
+
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch(`/api/user/email/${user.email}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hubspotKey: data.hubspotKey,
+          password: data.password,
+        }),
+      });
+
+      if (!response.ok) {
+        router.push("/");
+      }
+
+      const result = await response.json();
+      console.log("Updated Hubspot Key: ", result);
+    } catch (error) {
+      console.error("Update Information Error: ", error);
+    }
+  };
+
   const updateZipCodes = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
 
     if (!formData) return;
+
+    event.currentTarget.reset();
 
     const data = Object.fromEntries(formData.entries());
 
@@ -224,7 +262,7 @@ export default function Dashboard() {
                 onClick={getMyOrders}
                 className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
               >
-                Get all Orders
+                Show all Orders
               </button>
             </div>
           </>
@@ -308,6 +346,36 @@ export default function Dashboard() {
             type="submit"
           >
             Update Zip Codes
+          </button>
+        </form>
+        <br></br>
+        <form
+          onSubmit={submitHubspotKey}
+          className="bg-acc1 rounded-md p-8 max-w-[512px]"
+        >
+          <h1 className="mb-4 font-bold text-2xl">Update Hubspot Key</h1>
+          <label htmlFor="hubspotKey" className="text-md font-bold text-white">
+            Hubspot Key
+          </label>
+          <input
+            type="text"
+            name="hubspotKey"
+            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+          />
+          <label htmlFor="password" className="text-md font-bold text-white">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            required
+            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+          />
+          <button
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
+          >
+            Update Hubspot Key
           </button>
         </form>
       </div>

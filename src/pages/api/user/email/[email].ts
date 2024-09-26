@@ -43,6 +43,7 @@ export default async function handler(
       zipCodes,
       stripeId,
       password,
+      hubspotKey,
     } = req.body;
 
     const data = {
@@ -54,6 +55,7 @@ export default async function handler(
       ...(zipCodes !== undefined && { zipCodes }),
       ...(stripeId !== undefined && { stripeId }),
       ...(password !== undefined && { password }),
+      ...(hubspotKey !== undefined && { hubspotKey }),
     };
     console.log(decodedEmail);
     console.log(data);
@@ -64,7 +66,7 @@ export default async function handler(
       });
       res.status(200).json(contractor);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to update contractor' });
+      res.status(500).json({ error: "Failed to update contractor" });
     }
   } else if (req.method === "DELETE") {
     try {
