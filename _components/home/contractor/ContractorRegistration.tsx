@@ -217,7 +217,7 @@ export default function ContractorRegistration() {
                 name="hubspotKey"
                 type="text"
                 placeholder="Hubspot API Key"
-                maxLength={32}
+                maxLength={64}
                 className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />
             </div>
