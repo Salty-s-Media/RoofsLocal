@@ -123,6 +123,7 @@ export default function BillingManagement({ email }: BillProps) {
 
   return (
     <div>
+      <h2 className="text-2xl font-semibold mt-4 mb-4">Account Settings</h2>
       {!isUpdating ? (
         <>
           <button

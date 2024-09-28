@@ -226,9 +226,9 @@ export default function Dashboard() {
     <div className="min-h-screen w-full justify-center flex flex-col my-6">
       <div className="ml-12 mr-12">
         {loaded && (
-          <>
+          <div className="mt-[120px]">
             <h1 className="text-5xl font-bold">Dashboard</h1>
-            <div className="ml-4">
+            <div>
               <h2 className="text-2xl font-semibold mt-4">
                 Welcome, {user.firstName} {user.lastName}
               </h2>
@@ -247,8 +247,13 @@ export default function Dashboard() {
               <div>{user.zipCodes}</div>
               <br></br>
               <br></br>
-              <h2 className="text-2xl font-semibold mt-4">Orders</h2>
+              <h2 className="text-2xl font-semibold mt-4 mb-4">Orders</h2>
               <div>
+                {leads.length === 0 ? (
+                  <p>No orders found</p>
+                ) : (
+                  <p>Orders were found: </p>
+                )}
                 {leads.map((contact) => (
                   <div key={contact.id}>
                     <p>First Name: {contact.firstname}</p>
@@ -266,14 +271,50 @@ export default function Dashboard() {
                 Show all Orders
               </button>
             </div>
-          </>
+          </div>
         )}
         <br></br>
         <BillingManagement email={user.email} />
         <br></br>
         <form
+          onSubmit={updateZipCodes}
+          className="bg-darkG rounded-md p-8 max-w-[512px]"
+        >
+          <h1 className="mb-4 font-bold text-2xl">Update Zip Codes</h1>
+          <p className="mb-4">
+            In order for ZIP codes to be added properly, you must sumbit the zip
+            codes as a comma seperated list.
+          </p>
+          <label htmlFor="zipCodes" className="text-md font-bold text-white">
+            Zip Codes
+          </label>
+          <input
+            type="text"
+            name="zipCodes"
+            className="mt-1 mb-4 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+            placeholder={"12345, 12346, 12347..."}
+          />
+
+          <label htmlFor="password" className="text-md font-bold text-white">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            required
+            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+          />
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
+            type="submit"
+          >
+            Update Zip Codes
+          </button>
+        </form>
+        <br></br>
+        <form
           onSubmit={updateInfomation}
-          className="bg-acc1 rounded-md p-8 max-w-[512px]"
+          className="bg-darkG rounded-md p-8 max-w-[512px]"
         >
           <h1 className="mb-4 font-bold text-2xl">Update Information</h1>
           <label htmlFor="first" className="text-md font-bold text-white">
@@ -321,40 +362,10 @@ export default function Dashboard() {
           </button>
         </form>
         <br></br>
-        <form
-          onSubmit={updateZipCodes}
-          className="bg-acc1 rounded-md p-8 max-w-[512px]"
-        >
-          <h1 className="mb-4 font-bold text-2xl">Update Zip Codes</h1>
-          <label htmlFor="zipCodes" className="text-md font-bold text-white">
-            Zip Codes
-          </label>
-          <input
-            type="text"
-            name="zipCodes"
-            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-            placeholder={`${user.zipCodes}`}
-          />
-          <label htmlFor="password" className="text-md font-bold text-white">
-            Password
-          </label>
-          <input
-            type="password"
-            name="password"
-            required
-            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-          />
-          <button
-            className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
-            type="submit"
-          >
-            Update Zip Codes
-          </button>
-        </form>
-        <br></br>
+
         <form
           onSubmit={submitHubspotKey}
-          className="bg-acc1 rounded-md p-8 max-w-[512px]"
+          className="bg-darkG rounded-md p-8 max-w-[512px]"
         >
           <h1 className="mb-4 font-bold text-2xl">Update Hubspot Key</h1>
           <label htmlFor="hubspotKey" className="text-md font-bold text-white">

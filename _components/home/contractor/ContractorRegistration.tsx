@@ -64,7 +64,7 @@ export default function ContractorRegistration() {
             zipCodes: [data.zipCode],
             password: data.password,
             hubspotKey: data.hubspotKey,
-            stripeId: responseData.stripeId,
+            stripeId: responseData.stripeId, // this is the correct CustomerID TODO: Ensure its in Prisma. should be cus_... is cs_test_...
           }),
         });
 
