@@ -69,9 +69,10 @@ export default async function handler(
       res.status(500).json({ error: "Failed to update contractor" });
     }
   } else if (req.method === "DELETE") {
+    const { email } = req.body;
     try {
       await prisma.contractor.delete({
-        where: { email: decodedEmail },
+        where: { email: email },
       });
       res.status(204).end();
     } catch (error) {

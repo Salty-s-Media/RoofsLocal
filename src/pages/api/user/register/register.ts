@@ -28,6 +28,7 @@ export default async function handler(
     zipCodes,
     password,
     hubspotKey,
+    stripeId,
   } = req.body;
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -46,7 +47,7 @@ export default async function handler(
         email,
         phone,
         zipCodes,
-        stripeId: "",
+        stripeId: stripeId,
         password: hashedPassword,
         sessionId: sessionId,
         sessionExpiry: expires,

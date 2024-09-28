@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import BillingManagement from "../../_components/home/contractor/update/UpdatePayment";
 
 interface UserData {
   company: string;
@@ -267,6 +268,8 @@ export default function Dashboard() {
             </div>
           </>
         )}
+        <br></br>
+        <BillingManagement email={user.email} />
         <br></br>
         <form
           onSubmit={updateInfomation}

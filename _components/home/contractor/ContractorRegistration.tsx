@@ -64,12 +64,14 @@ export default function ContractorRegistration() {
             zipCodes: [data.zipCode],
             password: data.password,
             hubspotKey: data.hubspotKey,
+            stripeId: responseData.stripeId,
           }),
         });
 
         if (resp1.status === 201) {
           const responseData = await resp1.json();
           console.log("Company Created: ", responseData);
+          setTimeout(() => {}, 2000);
           window.location.href = checkoutUrl;
           return;
         } else {
