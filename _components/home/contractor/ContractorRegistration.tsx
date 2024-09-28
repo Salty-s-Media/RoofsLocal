@@ -87,10 +87,13 @@ export default function ContractorRegistration() {
     <div className="flex flex-col">
       <div className=" relative mx-auto">
         <div className=" bg-white p-8 text-blk rounded-xl shadow-lg">
-          <h2 className="text-gray-800 font-bold text-2xl mb-4">
-            Welcome, Contractor!
+          <h2 className="text-gray-800 text-center font-bold text-2xl mb-4">
+            Welcome!
           </h2>
-          <form className=" bg-white space-y-2" onSubmit={handleSubmit}>
+          <form
+            className="bg-white space-y-3 min-w-[250px] max-h-[max-content]"
+            onSubmit={handleSubmit}
+          >
             <div>
               <label
                 htmlFor="firstName"
@@ -218,12 +221,12 @@ export default function ContractorRegistration() {
                 type="text"
                 placeholder="Hubspot API Key"
                 maxLength={32}
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                className="mt-1 mb-2 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />
             </div>
             <button
               type="submit"
-              className="mt-4 w-full p-2 bg-gray-800 text-white rounded"
+              className="w-full p-2 bg-gray-800 text-white rounded"
             >
               Submit
             </button>

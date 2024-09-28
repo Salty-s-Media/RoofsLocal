@@ -3,15 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --bg: #151e2e;
+  --bg: #181818;
+  --bgD: #131313c0;
   --t: #ffffff;
-  --acc1: #0a3f7c;
-  --acc2: #1569c9;
+  --acc1: #a1f622;
+  --acc2: #26b917;
+  --darkg: #1a1a1a;
   --blk: #000000;
+  --bgE: #3b3b3b;
 }
 
 html {
   scrollbar-width: thin;
+  scrollbar-color: var(--bgE) var(--darkg);
 }
 
 body {

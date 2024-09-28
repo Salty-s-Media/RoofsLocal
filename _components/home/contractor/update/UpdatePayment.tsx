@@ -15,7 +15,7 @@ export default function BillingManagement() {
     const data = Object.fromEntries(formData.entries());
 
     //Find the customer ID and payment method ID using email as unique identifier
-    const req = await fetch("/api/stripe/find-customer", {
+    const req = await fetch(`/api/user/email/${data.email}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,7 +30,7 @@ export default function BillingManagement() {
 
     const res = await req.json();
 
-    const customerId = res.customerId;
+    const customerId = res.stripeId;
 
     // Create session and process new payment method
     const req1 = await fetch("/api/stripe/create-update-session", {
