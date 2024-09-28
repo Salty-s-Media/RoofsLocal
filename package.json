@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npx prisma generate; next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -12,13 +12,23 @@
     "@hubspot/api-client": "^11.1.0",
     "@prisma/client": "^5.15.1",
     "@stripe/stripe-js": "^4.0.0",
+    "bcrypt": "^5.1.1",
+    "cookie": "^0.6.0",
+    "crypto": "^1.0.1",
+    "jose": "^5.4.1",
+    "json2csv": "6.0.0-alpha.2",
     "lucide-react": "^0.396.0",
     "next": "14.2.4",
     "react": "^18",
     "react-dom": "^18",
-    "stripe": "^15.12.0"
+    "resend": "^3.4.0",
+    "stripe": "^15.12.0",
+    "twilio": "^5.2.2"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie": "^0.6.0",
+    "@types/json2csv": "^5.0.7",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
