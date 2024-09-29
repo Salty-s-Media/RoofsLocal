@@ -86,7 +86,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('HubSpot response received:', data);
 
       if (data.total === 0) {
-        throw new Error(`No contact found with hs_object_id: ${objectId}`);
+        console.log(`No contact found with hs_object_id: ${objectId}`);
+        res.status(200).json({ message: 'No matching contractor, nothing done' });
       }
       const lead = data.results[0].properties;
 
@@ -145,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(500).json({ error: error });
     }
 
-    res.status(200).json({ message: 'Webhook received successfully' });
+    res.status(200).json({ message: 'Lead imported into contractor Hubspot' });
   } else {
     res.setHeader('Allow', ['POST']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
