@@ -29,7 +29,7 @@ interface WebhookData {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // await new Promise(resolve => setTimeout(resolve, 5000));
     const { body } = req;
 
     console.log('Webhook received:', body[0]);
@@ -142,6 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         `Error processing webhook data from HubSpot:`,
         objectId, error
       );
+      res.status(500).json({ error: error });
     }
 
     res.status(200).json({ message: 'Webhook received successfully' });
