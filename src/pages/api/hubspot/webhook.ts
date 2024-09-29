@@ -86,8 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('HubSpot response received:', data);
 
       if (data.total === 0) {
-        console.log(`No contact found with hs_object_id: ${objectId}`);
-        res.status(200).json({ message: 'No matching contractor, nothing done' });
+        throw new Error(`No contact found with hs_object_id: ${objectId}`);
       }
       const lead = data.results[0].properties;
 
@@ -105,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const contractorKey = contractor?.hubspotKey;
 
       if (!contractor) {
-        throw new Error(`No contractor found for zip code: ${zip}`);
+        res.status(200).json({ message: `No contractor found for zip code: ${zip}, nothing done` });
       }
       
       delete lead.createdate;
