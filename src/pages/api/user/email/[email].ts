@@ -24,6 +24,7 @@ export default async function handler(
       if (contractor) {
         res.status(200).json({
           name: contractor.company,
+          stripeId: contractor.stripeId,
           email: contractor.email,
           zipCodes: contractor.zipCodes,
         });

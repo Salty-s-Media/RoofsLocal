@@ -11,14 +11,11 @@ export default function BillingManagement({ email }: BillProps) {
   const [customerID, setCustomerId] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
-  const handleUpdateBilling = async () => {
+  async function handleUpdateBilling() {
+    console.log("Updating billing...");
     //Find the customer ID using email as unique identifier
     const req = await fetch(`/api/user/email/${email}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: email }),
+      method: "GET",
     });
 
     if (!req.ok) {
@@ -28,26 +25,12 @@ export default function BillingManagement({ email }: BillProps) {
 
     const res = await req.json();
 
-    const customerId = res.stripeId;
-    setCustomerId(customerId);
+    console.log("Step 1", res);
 
-    // GET customer info from Stripe for the payment method ID
-    const req1 = await fetch("/api/stripe/get-user", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ customerId: customerId }),
-    });
+    const customerId = res.stripeId; // should be cus_... but is cs_test_...
+    setCustomerId(customerId as string);
 
-    if (!req1.ok) {
-      console.error("HTTP error", req1.status);
-      return;
-    }
-
-    const res1 = await req1.json();
-
-    console.log(res1);
+    console.log("Step 2", customerID);
 
     // detach all old payment methods
     const req2 = await fetch("/api/stripe/detach-payment-method", {
@@ -63,7 +46,7 @@ export default function BillingManagement({ email }: BillProps) {
     }
 
     const res2 = await req2.json();
-    console.log(res2);
+    console.log("step 3", res2);
 
     // Create session and process new payment method under the same customer account
     const req3 = await fetch("/api/stripe/create-update-session", {
@@ -82,12 +65,27 @@ export default function BillingManagement({ email }: BillProps) {
 
     const res3 = await req3.json();
 
-    console.log(res3);
+    console.log("step 4", res3);
 
     setIsUpdating(false);
-  };
+  }
 
-  const handleCancelBilling = async () => {
+  async function handleCancelBilling() {
+    // delete user from stripe
+    const req2 = await fetch("/api/stripe/delete-user", {
+      method: "DELETE",
+      body: JSON.stringify({
+        customerId: customerID,
+      }),
+    });
+    if (!req2.ok) {
+      console.error("HTTP error", req2.status);
+      return;
+    }
+    const res2 = await req2.json();
+    console.log(res2);
+
+    // Delete user from database
     const del = await fetch(`/api/user/email/${email}`, {
       method: "DELETE",
       headers: {
@@ -108,23 +106,10 @@ export default function BillingManagement({ email }: BillProps) {
       console.error("HTTP error", res.status);
       return;
     }
-
-    const req2 = await fetch("/api/stripe/delete-user", {
-      method: "DELETE",
-      body: JSON.stringify({
-        customerId: customerID,
-      }),
-    });
-    if (!req2.ok) {
-      console.error("HTTP error", req2.status);
-      return;
-    }
-    const res2 = await req2.json();
-    console.log(res2);
     setTimeout(() => {
       window.location.href = `${process.env.NEXT_PUBLIC_SERVER_URL}/`;
     }, 2000);
-  };
+  }
 
   return (
     <div>
@@ -141,7 +126,7 @@ export default function BillingManagement({ email }: BillProps) {
         <div>
           <p>Are you sure you want to update your billing?</p>
           <button
-            onClick={handleUpdateBilling}
+            onClick={() => handleUpdateBilling()}
             className="bg-blue-500 text-white p-2 rounded-xl"
           >
             Update Billing
@@ -165,7 +150,7 @@ export default function BillingManagement({ email }: BillProps) {
         <>
           <p>Are you sure you want to delete your account?</p>
           <button
-            onClick={handleCancelBilling}
+            onClick={() => handleCancelBilling()}
             className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded"
           >
             Yes
