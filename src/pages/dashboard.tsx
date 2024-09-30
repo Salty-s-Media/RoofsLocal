@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
-import BillingManagement from "../../_components/home/contractor/update/UpdatePayment";
+import BillingManagement from "../../_components/home/contractor/update/UpdateContractor";
+import HowToKey from "../../_components/home/contractor/HowToKey";
 
 interface UserData {
   company: string;
@@ -222,30 +223,33 @@ export default function Dashboard() {
       console.error("Update Information Error: ", error);
     }
   };
+
   return (
     <div className="min-h-screen w-full justify-center flex flex-col my-6">
       <div className="ml-12 mr-12">
         {loaded && (
-          <div className="mt-[120px]">
+          <div className="mt-[120px] bg-gray-600 p-8 rounded-md ">
             <h1 className="text-5xl font-bold">Dashboard</h1>
             <div>
-              <h2 className="text-2xl font-semibold mt-4">
+              <h2 className="text-2xl font-semibold mt-4 mb-4">
                 Welcome, {user.firstName} {user.lastName}
               </h2>
-              <p>Company: {user.company}</p>
-              <p>Email: {user.email}</p>
-              <p>Phone: {user.phone}</p>
-              <p>Zip Codes:</p>
-              <p>{user.zipCodes}</p>
-              <br></br>
-              <h3>Account Information</h3>
-              <p>Created: {user.createdAt}</p>
-              <p>Updated: {user.updatedAt}</p>
-              <p>Session Expiry: {user.sessionExpiry}</p>
-              <br></br>
-              <h1>Zip Codes</h1>
-              <div>{user.zipCodes}</div>
-              <br></br>
+              <div className="flex flex-row align-top gap-x-4">
+                <div>
+                  <p>Company: {user.company}</p>
+                  <p>Email: {user.email}</p>
+                  <p>Phone: {user.phone}</p>
+                  <p>Zip Codes:</p>
+                  <p>{user.zipCodes}</p>
+                </div>
+                <div>
+                  <h3>Account Information</h3>
+                  <p>Created: {user.createdAt}</p>
+                  <p>Updated: {user.updatedAt}</p>
+                  <p>Session Expiry: {user.sessionExpiry}</p>
+                </div>
+              </div>
+
               <br></br>
               <h2 className="text-2xl font-semibold mt-4 mb-4">Orders</h2>
               <div>
@@ -273,8 +277,6 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        <br></br>
-        <BillingManagement email={user.email} />
         <br></br>
         <form
           onSubmit={updateZipCodes}
@@ -363,6 +365,7 @@ export default function Dashboard() {
         </form>
         <br></br>
 
+        <HowToKey />
         <form
           onSubmit={submitHubspotKey}
           className="bg-darkG rounded-md p-8 max-w-[512px]"
@@ -392,6 +395,11 @@ export default function Dashboard() {
             Update Hubspot Key
           </button>
         </form>
+
+        <br></br>
+        <h2 className="text-2xl font-semibold mt-4 mb-4">Account Settings</h2>
+        <BillingManagement email={user.email} />
+        <br></br>
       </div>
     </div>
   );

@@ -104,6 +104,11 @@ export default function BillingManagement({ email }: BillProps) {
     const res = await del.json();
     console.log(res);
 
+    if (!res.ok) {
+      console.error("HTTP error", res.status);
+      return;
+    }
+
     const req2 = await fetch("/api/stripe/delete-user", {
       method: "DELETE",
       body: JSON.stringify({
@@ -123,7 +128,6 @@ export default function BillingManagement({ email }: BillProps) {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold mt-4 mb-4">Account Settings</h2>
       {!isUpdating ? (
         <>
           <button
