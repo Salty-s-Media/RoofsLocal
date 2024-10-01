@@ -144,7 +144,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         from: "Roofs Local <info@roofslocal.app>",
         to: contractor?.email ? [contractor.email] : [],
         subject: "Roofs Local: New Lead",
-        text: `Attached new lead was just pushed to you hubspot account by Roofs Local! \n${lead.firstname} ${lead.lastname} - ${lead.email} - ${lead.phone} - ${lead.zip}`,
+        text: `A new lead was just pushed to you hubspot account by Roofs Local! \n${lead.firstname} ${lead.lastname} - ${lead.email} - ${lead.phone} - ${lead.zip}`,
       });
     } catch (error) {
       console.error(
