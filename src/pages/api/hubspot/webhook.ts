@@ -151,7 +151,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         `Error processing webhook data from HubSpot:`,
         objectId, error
       );
-      res.status(500).json({ error: error });
+      res.status(500).send({ error: error });
+      return;
     }
 
     res.status(200).json({ message: 'Lead imported into contractor Hubspot' });
