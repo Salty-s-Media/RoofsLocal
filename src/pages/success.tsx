@@ -10,13 +10,13 @@ export default function Success() {
   const saveId = async () => {
     const email = localStorage.getItem("email") as string;
     const urlParams = new URLSearchParams(window.location.search);
-    const stripeId = urlParams.get("session_id") || "";
-    await fetch (`/api/user/email/${email}`, {
+    const sessionId = urlParams.get("session_id") || "";
+    await fetch(`/api/user/email/${email}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ stripeId }),
+      body: JSON.stringify({ sessionId: sessionId }),
     });
   };
 

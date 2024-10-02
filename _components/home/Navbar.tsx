@@ -1,8 +1,30 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import { useRouter } from "next/router";
+import React, { useEffect } from "react";
 
 export default function Navbar() {
+  const router = useRouter();
+  const [isHome, setIsHome] = React.useState(false);
+  useEffect(() => {
+    setIsHome(router.pathname !== "/");
+  }, [router.pathname]);
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/user/logout/logout", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Logout Error: ", error);
+    }
+  };
   return (
     <nav
       aria-label="navigation"
@@ -31,18 +53,31 @@ export default function Navbar() {
           >
             Home
           </Link>
-          <Link
-            href="/login"
-            className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
-          >
-            Login
-          </Link>
-          <Link
-            href="/contractor"
-            className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
-          >
-            Registration
-          </Link>
+          {isHome ? (
+            <button
+              onClick={() => {
+                handleLogout();
+              }}
+              className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
+            >
+              Logout
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
+              >
+                Login
+              </Link>
+              <Link
+                href="/contractor"
+                className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
+              >
+                Registration
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

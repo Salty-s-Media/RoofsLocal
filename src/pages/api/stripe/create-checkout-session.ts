@@ -32,8 +32,6 @@ export default async function handler(
       name: `${firstName} ${lastName}`,
     });
 
-    console.log("Customer ID should have cus prefix: ", customer.id);
-
     // Create a Checkout Session in Setup Mode with that Customer ID
     const session = await stripe.checkout.sessions.create({
       mode: "setup",

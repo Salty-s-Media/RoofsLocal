@@ -241,6 +241,9 @@ export default function Dashboard() {
                   <p>Phone: {user.phone}</p>
                   <p>Zip Codes:</p>
                   <p>{user.zipCodes}</p>
+                  <p className="max-w-sm text-wrap overflow-hidden">
+                    Stripe ID: {user.stripeId}
+                  </p>
                 </div>
                 <div>
                   <h3>Account Information</h3>
