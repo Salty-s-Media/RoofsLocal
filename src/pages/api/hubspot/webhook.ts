@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { Resend } from "resend";
 import { NextApiRequest, NextApiResponse } from 'next';
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface WebhookData {
   total: number,
@@ -29,7 +31,7 @@ interface WebhookData {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // await new Promise(resolve => setTimeout(resolve, 5000));
     const { body } = req;
 
     console.log('Webhook received:', body[0]);
@@ -104,7 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const contractorKey = contractor?.hubspotKey;
 
       if (!contractor) {
-        throw new Error(`No contractor found for zip code: ${zip}`);
+        res.status(200).json({ message: `No contractor found for zip code: ${zip}, nothing done` });
       }
       
       delete lead.createdate;
@@ -137,14 +139,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const createContactResult = await createContactResponse.json();
       console.log('Contact created in HubSpot: ', createContactResult);
+
+      resend.emails.send({
+        from: "Roofs Local <info@roofslocal.app>",
+        to: contractor?.email ? [contractor.email] : [],
+        subject: "Roofs Local: New Lead",
+        text: `A new lead was just pushed to you hubspot account by Roofs Local! \n${lead.firstname} ${lead.lastname} - ${lead.email} - ${lead.phone} - ${lead.zip}`,
+      });
     } catch (error) {
       console.error(
         `Error processing webhook data from HubSpot:`,
         objectId, error
       );
+      res.status(500).send({ error: error });
+      return;
     }
 
-    res.status(200).json({ message: 'Webhook received successfully' });
+    res.status(200).json({ message: 'Lead imported into contractor Hubspot' });
   } else {
     res.setHeader('Allow', ['POST']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
