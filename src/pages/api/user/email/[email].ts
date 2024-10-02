@@ -45,6 +45,7 @@ export default async function handler(
       stripeId,
       password,
       hubspotKey,
+      stripeSessionId,
     } = req.body;
 
     const data = {
@@ -57,6 +58,7 @@ export default async function handler(
       ...(stripeId !== undefined && { stripeId }),
       ...(password !== undefined && { password }),
       ...(hubspotKey !== undefined && { hubspotKey }),
+      ...(stripeSessionId !== undefined && { stripeSessionId }),
     };
     console.log(decodedEmail);
     console.log(data);

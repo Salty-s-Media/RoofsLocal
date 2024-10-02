@@ -144,7 +144,7 @@ export default async function handler(
       select: {
         email: true,
         boughtZipCodes: true,
-        stripeId: true,
+        stripeSessionId: true,
         company: true,
         phone: true, // Add phone to the select
         phoneVerified: true, // Add phoneVerified to the select
@@ -255,7 +255,7 @@ export default async function handler(
 
       if (allResults.length > 0) {
         const payment = await chargeContractor(
-          contractor.stripeId,
+          contractor.stripeSessionId,
           cost
         );
         if (payment.status != "succeeded") {

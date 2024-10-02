@@ -23,9 +23,10 @@ model Contractor {
   phone             String   @unique
   zipCodes          String[]
   boughtZipCodes    String[]
-  stripeId          String
+  stripeId          String // stripe customer id
   password          String
-  sessionId         String   @unique
+  sessionId         String   @unique // our session ids
+  stripeSessionId   String   @default("") // stripe checkout session id
   sessionExpiry     DateTime
   verificationToken String
   isVerified        Boolean  @default(false)

@@ -1,3 +1,7 @@
+/* THIS FILE IS FOR DOCUMENTATION ONLY - DO NOT USE */
+/* THIS FILE IS FOR DOCUMENTATION ONLY - DO NOT USE */
+/* THIS FILE IS FOR DOCUMENTATION ONLY - DO NOT USE */
+
 import { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 

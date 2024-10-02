@@ -27,7 +27,7 @@ export default function BillingManagement({ email }: BillProps) {
 
     console.log("Step 1", res);
 
-    const customerId = res.stripeId; // should be cus_... but is cs_test_...
+    const customerId = res.stripeId;
     setCustomerId(customerId as string);
 
     console.log("Step 2", customerID);
