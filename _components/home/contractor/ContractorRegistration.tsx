@@ -64,7 +64,7 @@ export default function ContractorRegistration() {
             zipCodes: [data.zipCode],
             password: data.password,
             hubspotKey: data.hubspotKey,
-            stripeId: responseData.stripeId, // this is the correct CustomerID TODO: Ensure its in Prisma. should be cus_... is cs_test_...
+            stripeId: responseData.stripeId,
           }),
         });
 
@@ -222,7 +222,7 @@ export default function ContractorRegistration() {
                 name="hubspotKey"
                 type="text"
                 placeholder="Hubspot API Key"
-                maxLength={32}
+                maxLength={64}
                 className="mt-1 mb-2 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />
             </div>
