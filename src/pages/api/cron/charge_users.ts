@@ -148,6 +148,7 @@ export default async function handler(
         company: true,
         phone: true, // Add phone to the select
         phoneVerified: true, // Add phoneVerified to the select
+        hubspotKey: true,
       },
     });
 
