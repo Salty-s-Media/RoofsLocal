@@ -140,6 +140,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const createContactResult = await createContactResponse.json();
       console.log('Contact created in HubSpot: ', createContactResult);
 
+      await fetch(
+        "https://api.hubapi.com/crm/v3/objects/contacts/batch/update",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+          },
+          body: JSON.stringify({
+            inputs: [
+              {
+                id: objectId,
+                properties: {
+                  hs_lead_status: "CONNECTED",
+                },
+              },
+            ],
+          }),
+        }
+      );
+
       resend.emails.send({
         from: "Roofs Local <info@roofslocal.app>",
         to: contractor?.email ? [contractor.email] : [],
