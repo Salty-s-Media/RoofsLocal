@@ -8,6 +8,7 @@ import React, { useEffect } from "react";
 export default function Navbar() {
   const router = useRouter();
   const [isHome, setIsHome] = React.useState(false);
+
   useEffect(() => {
     setIsHome(router.pathname !== "/");
   }, [router.pathname]);
