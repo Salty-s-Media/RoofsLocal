@@ -72,10 +72,10 @@ export default function Navbar() {
                 Login
               </Link>
               <Link
-                href="/contractor"
-                className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
+                href="/help"
+                className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-gray-600 border-2 border-gray-100 hover:bg-gray-800 transition duration-200 ease-in-out"
               >
-                Registration
+                Help Guide
               </Link>
             </>
           )}
