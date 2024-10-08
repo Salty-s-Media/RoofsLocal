@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState<UserData>({} as UserData);
   const [leads, setLeads] = useState([] as Contact[]);
+  const [error, setError] = useState(false);
   const zips = useRef([] as string[]);
 
   const router = useRouter();
@@ -55,6 +56,8 @@ export default function Dashboard() {
 
       setUser(result);
 
+      zips.current = user.zipCodes;
+
       console.log("Current User Info: ", result);
     } catch (error) {
       console.error("Check Login Error: ", error);
@@ -64,8 +67,7 @@ export default function Dashboard() {
   useEffect(() => {
     checkLogin();
     setLoaded(true);
-    zips.current = user.zipCodes;
-  }, [user.zipCodes]);
+  }, []);
 
   const getMyOrders = async () => {
     try {
@@ -194,33 +196,76 @@ export default function Dashboard() {
       console.error("Update Information Error: ", error);
     }
 
-    // Then, update the zip codes with the new zip codes by pushing in the new ones from the form data.
-    zipCodes.push(...(data.zipCodes as unknown as string).split(","));
+    const newZips: string[] = [];
 
-    console.log("updated zips: ", zipCodes);
+    newZips.push(...(data.zipCodes as unknown as string).split(","));
 
-    try {
-      const response = await fetch(`/api/user/email/${user.email}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          zipCodes: zipCodes,
-          password: data.password, // required for the PUT request
-        }),
-      });
+    const pattern = /^\d{5}(-\d{4})?$/;
 
-      if (!response.ok) {
-        router.push("/");
+    newZips.forEach((zip: string, index: number) => {
+      console.log(`zip: ${index}`, zip);
+      if (zip === zipCodes.at(index)) {
+        document.getElementById("error")!.innerText =
+          "Error updating zip codes. Zip was a duplicate.";
+        setTimeout(() => {
+          document.getElementById("error")!.innerText = "";
+        }, 4000);
+        setError(true);
+        return;
       }
+      if (typeof zip !== "string") {
+        document.getElementById("error")!.innerText =
+          "Error updating zip codes. Zip wasn't correct length.";
+        setTimeout(() => {
+          document.getElementById("error")!.innerText = "";
+        }, 4000);
+        setError(true);
+        return;
+      } else if (!zip.match(pattern)) {
+        document.getElementById("error")!.innerText =
+          "Error updating zip codes. Ensure the format is correct and try again.";
+        setTimeout(() => {
+          document.getElementById("error")!.innerText = "";
+        }, 4000);
+        setError(true);
+        return;
+      } else {
+        return zipCodes.push(zip);
+      }
+    });
 
-      const result = await response.json();
-      console.log("Updated Zip Codes: ", result);
+    // Then, update the zip codes with the new zip codes by pushing in the new ones from the form data.
 
-      setUser(result); // Display updated user info
-    } catch (error) {
-      console.error("Update Information Error: ", error);
+    // zipCodes.push(...(data.zipCodes as unknown as string).split(","));
+
+    console.log("updated zips and error: ", zipCodes, error);
+    if (!error) {
+      try {
+        const response = await fetch(`/api/user/email/${user.email}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            zipCodes: zipCodes,
+            password: data.password, // required for the PUT request
+          }),
+        });
+
+        if (response.status === 200) {
+          document.getElementById("success")!.innerText = "Zip Codes Updated!";
+          setTimeout(() => {
+            document.getElementById("success")!.innerText = "";
+          }, 4000);
+        }
+
+        const result = await response.json();
+        console.log("Updated Zip Codes: ", result);
+
+        setUser(result); // Display updated user info
+      } catch (error) {
+        console.error("Update Information Error: ", error);
+      }
     }
   };
 
@@ -241,9 +286,6 @@ export default function Dashboard() {
                   <p>Phone: {user.phone}</p>
                   <p>Zip Codes:</p>
                   <p>{user.zipCodes}</p>
-                  <p className="max-w-sm text-wrap overflow-hidden">
-                    Stripe ID: {user.stripeId}
-                  </p>
                 </div>
                 <div>
                   <h3>Account Information</h3>
@@ -315,6 +357,13 @@ export default function Dashboard() {
           >
             Update Zip Codes
           </button>
+          <div className="mt-4 mb-4">
+            <p
+              id="success"
+              className="text-md font-semibold text-green-600"
+            ></p>
+            <p id="error" className="text-md font-semibold text-red-600"></p>
+          </div>
         </form>
         <br></br>
         <form
