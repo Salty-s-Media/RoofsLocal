@@ -148,6 +148,7 @@ export default async function handler(
         company: true,
         phone: true, // Add phone to the select
         phoneVerified: true, // Add phoneVerified to the select
+        hubspotKey: true,
       },
     });
 
@@ -166,13 +167,13 @@ export default async function handler(
           });
         } catch (error) {
           console.error("Failed to create call:", error);
-          await prisma.contractor.delete({
-            where: { email: contractor.email },
-          });
+          // await prisma.contractor.delete({
+          //   where: { email: contractor.email },
+          // });
           continue;
         }
       }
-      const { email, boughtZipCodes } = contractor;
+      const { company, email, boughtZipCodes, stripeSessionId, hubspotKey } = contractor;
 
       let allResults: Contact[] = [];
 
@@ -236,9 +237,24 @@ export default async function handler(
           allResults = [...allResults, ...results];
 
           const allResultsIds = allResults.map((result) => result.id);
+          
+          allResults.forEach(async (result) => {
+            await fetch(
+              "https://api.hubapi.com/crm/v3/objects/contacts",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${hubspotKey}`,
+                },
+                body: JSON.stringify(result.properties),
+              }
+            )
+          });
+
           await batchUpdateContacts(allResultsIds, {
             properties: {
-              owner: contractor.company,
+              owner: company,
               hs_lead_status: "CONNECTED",
             },
           });
@@ -255,8 +271,8 @@ export default async function handler(
 
       if (allResults.length > 0) {
         const payment = await chargeContractor(
-          contractor.stripeSessionId,
-          cost
+          stripeSessionId,
+       cost
         );
         if (payment.status != "succeeded") {
           console.error("Payment didn't process:", payment.status);
