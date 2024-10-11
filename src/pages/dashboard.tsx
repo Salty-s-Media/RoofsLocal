@@ -198,7 +198,8 @@ export default function Dashboard() {
 
     const newZips: string[] = [];
 
-    newZips.push(...(data.zipCodes as unknown as string).split(","));
+    newZips.push(...(data.zipCodes as unknown as string).split(",").map(zip => zip.trim()));
+    console.log("new zips: ", newZips);
 
     const pattern = /^\d{5}(-\d{4})?$/;
 
@@ -285,7 +286,7 @@ export default function Dashboard() {
                   <p>Email: {user.email}</p>
                   <p>Phone: {user.phone}</p>
                   <p>Zip Codes:</p>
-                  <p>{user.zipCodes}</p>
+                  <p>{user.zipCodes ? user.zipCodes.join(', ') : 'No zip codes available'}</p>
                 </div>
                 <div>
                   <h3>Account Information</h3>

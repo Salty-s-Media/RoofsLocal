@@ -43,7 +43,7 @@ function sendEmail(email: string, leads: Contact[]) {
     subject: "Leads",
     text: `Attached are your leads ${
       leads.length
-    }. Your card on file will be charged ${leads.length * PRICE_PER_LEAD} USD.`,
+    }. Your card on file will be charged ${leads.length * PRICE_PER_LEAD / 100} USD.`,
     attachments: [
       {
         filename: "leads.csv",
@@ -143,7 +143,7 @@ export default async function handler(
     const contractors = await prisma.contractor.findMany({
       select: {
         email: true,
-        boughtZipCodes: true,
+        zipCodes: true,
         stripeSessionId: true,
         company: true,
         phone: true, // Add phone to the select
@@ -173,11 +173,11 @@ export default async function handler(
           continue;
         }
       }
-      const { company, email, boughtZipCodes, stripeSessionId, hubspotKey } = contractor;
+      const { company, email, zipCodes, stripeSessionId, hubspotKey } = contractor;
 
       let allResults: Contact[] = [];
 
-      for (const zipCode of boughtZipCodes) {
+      for (const zipCode of zipCodes) {
         const postData = {
           filterGroups: [
             {
