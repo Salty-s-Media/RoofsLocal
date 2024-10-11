@@ -65,7 +65,7 @@ export default function Dashboard() {
     checkLogin();
     setLoaded(true);
     zips.current = user.zipCodes;
-  }, [user.zipCodes]);
+  }, []);
 
   const getMyOrders = async () => {
     try {
