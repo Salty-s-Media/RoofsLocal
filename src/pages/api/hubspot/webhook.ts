@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from "next";
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface WebhookData {
-  total: number,
+  total: number;
   results: [
     {
       id: string;
@@ -24,19 +24,22 @@ interface WebhookData {
         lastmodifieddate?: string;
         zip: string | null;
         company?: string | null;
-      }
+      };
     }
-  ]
+  ];
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'POST') {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method === "POST") {
     // await new Promise(resolve => setTimeout(resolve, 5000));
     const { body } = req;
 
-    console.log('Webhook received:', body[0]);
+    console.log("Webhook received:", body[0]);
     const objectId: string = body[0].objectId;
-    console.log('Object ID:', objectId);
+    console.log("Object ID:", objectId);
 
     const postData = {
       filterGroups: [
@@ -60,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // "plan",
         // "job_status",
         "contact_owner",
-        "zip"
+        "zip",
       ],
     };
 
@@ -85,14 +88,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
       }
       const data = await hubspotResponse.json();
-      console.log('HubSpot response received:', data);
+      console.log("HubSpot response received:", data);
 
       if (data.total === 0) {
         throw new Error(`No contact found with hs_object_id: ${objectId}`);
       }
       const lead = data.results[0].properties;
 
-      console.log('New lead data from webhook: ', lead);
+      console.log("New lead data from webhook: ", lead);
 
       const zip = lead.zip;
       const contractor = await prisma.contractor.findFirst({
@@ -106,17 +109,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const contractorKey = contractor?.hubspotKey;
 
       if (!contractor) {
-        res.status(200).json({ message: `No contractor found for zip code: ${zip}, nothing done` });
+        res
+          .status(200)
+          .json({
+            message: `No contractor found for zip code: ${zip}, nothing done`,
+          });
       }
-      
+
       delete lead.createdate;
       delete lead.lastmodifieddate;
 
       lead.company = "Roofs Local";
 
       const createData = {
-        properties: lead
-      }
+        properties: lead,
+      };
 
       const createContactResponse = await fetch(
         "https://api.hubapi.com/crm/v3/objects/contacts",
@@ -138,7 +145,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const createContactResult = await createContactResponse.json();
-      console.log('Contact created in HubSpot: ', createContactResult);
+      console.log("Contact created in HubSpot: ", createContactResult);
 
       await fetch(
         "https://api.hubapi.com/crm/v3/objects/contacts/batch/update",
@@ -153,7 +160,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               {
                 id: objectId,
                 properties: {
-                  hs_lead_status: "CONNECTED",
+                  hs_lead_status: "IN_PROGRESS",
                 },
               },
             ],
@@ -170,15 +177,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error(
         `Error processing webhook data from HubSpot:`,
-        objectId, error
+        objectId,
+        error
       );
       res.status(500).send({ error: error });
       return;
     }
 
-    res.status(200).json({ message: 'Lead imported into contractor Hubspot' });
+    res.status(200).json({ message: "Lead imported into contractor Hubspot" });
   } else {
-    res.setHeader('Allow', ['POST']);
+    res.setHeader("Allow", ["POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

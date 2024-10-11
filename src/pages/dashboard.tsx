@@ -67,6 +67,7 @@ export default function Dashboard() {
   useEffect(() => {
     checkLogin();
     setLoaded(true);
+    zips.current = user.zipCodes;
   }, []);
 
   const getMyOrders = async () => {

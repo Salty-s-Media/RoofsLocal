@@ -68,9 +68,30 @@ export default function ContractorRegistration() {
           }),
         });
 
+        const resp2 = await fetch("/api/hubspot/create-company", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: companyName,
+            zip: data.zipCode,
+            phone: data.phone,
+          }),
+        });
+
+        if (resp2.status === 200) {
+          const responseData = await resp2.json();
+          console.log("Company created in HubSpot: ", responseData);
+        } else {
+          console.error("HubSpot company creation error");
+          return;
+        }
+
         if (resp1.status === 201) {
           const responseData = await resp1.json();
-          console.log("Company Created: ", responseData);
+          console.log("Registered: ", responseData);
+
           setTimeout(() => {}, 2000);
           window.location.href = checkoutUrl;
           return;

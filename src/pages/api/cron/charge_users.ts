@@ -226,7 +226,8 @@ export default async function handler(
           const data = await hubspotResponse.json();
 
           const filteredResults = data.results.filter(
-            (contact: HSLead) => contact.properties.hs_lead_status === "OPEN"
+            (contact: HSLead) =>
+              contact.properties.hs_lead_status === "IN_PROGRESS"
           );
 
           const results = filteredResults.map((contact: Contact) => ({
@@ -237,19 +238,16 @@ export default async function handler(
           allResults = [...allResults, ...results];
 
           const allResultsIds = allResults.map((result) => result.id);
-          
+
           allResults.forEach(async (result) => {
-            await fetch(
-              "https://api.hubapi.com/crm/v3/objects/contacts",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${hubspotKey}`,
-                },
-                body: JSON.stringify(result.properties),
-              }
-            )
+            await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${hubspotKey}`,
+              },
+              body: JSON.stringify(result.properties),
+            });
           });
 
           await batchUpdateContacts(allResultsIds, {
@@ -270,10 +268,7 @@ export default async function handler(
       const cost = allResults.length * PRICE_PER_LEAD;
 
       if (allResults.length > 0) {
-        const payment = await chargeContractor(
-          stripeSessionId,
-       cost
-        );
+        const payment = await chargeContractor(stripeSessionId, cost);
         if (payment.status != "succeeded") {
           console.error("Payment didn't process:", payment.status);
           res.status(204).json({ message: "Returned no results" });
