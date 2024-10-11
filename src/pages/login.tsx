@@ -6,6 +6,15 @@ import { FormEvent } from "react";
 export default function Login() {
   const router = useRouter();
 
+  function displayErrorMessage() {
+    document.getElementById("msg")!.innerText =
+      "Invalid email or password. Please try again.";
+    document.getElementById("msg")!.style.color = "red";
+    setTimeout(() => {
+      document.getElementById("msg")!.innerText = "";
+    }, 3000);
+  }
+
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -36,9 +45,8 @@ export default function Login() {
         router.push("/dashboard");
       } else {
         console.error("Login Error: ", result.error);
+        displayErrorMessage();
       }
-
-      console.log("Login Result: ", result);
     } catch (error) {
       console.error("Login Error: ", error);
     }
@@ -97,6 +105,7 @@ export default function Login() {
               />
             </div>
           </div>
+          <p id="msg" className="mt-2 mb-2"></p>
           <div className="mt-4">
             <button
               type="submit"
