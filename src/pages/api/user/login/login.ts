@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+// import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { serialize } from "cookie";
 
@@ -28,10 +28,11 @@ export default async function handler(
       return res.status(401).json({ error: "No Logins Exist." });
     }
 
-    const isMatch = await bcrypt.compare(
-      _password as string,
-      contractor.password
-    );
+    // const isMatch = await bcrypt.compare(
+    //   _password as string,
+    //   contractor.password
+    // );
+    const isMatch = _password === contractor.password;
 
     console.log("Match: ", isMatch);
 
@@ -40,11 +41,11 @@ export default async function handler(
     }
 
     const sessionId = crypto.randomBytes(16).toString("hex");
-    const hashedSessionId = await bcrypt.hash(sessionId, 10);
+    // const hashedSessionId = await bcrypt.hash(sessionId, 10);
 
     await prisma.contractor.update({
       where: { email },
-      data: { sessionId: hashedSessionId },
+      data: { sessionId: sessionId },
     });
 
     const cookieOptions = {
