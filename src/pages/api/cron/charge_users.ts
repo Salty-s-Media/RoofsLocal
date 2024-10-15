@@ -140,6 +140,7 @@ export default async function handler(
   }
 
   try {
+    console.log('called');
     const contractors = await prisma.contractor.findMany({
       select: {
         email: true,
@@ -214,8 +215,6 @@ export default async function handler(
             }
           );
 
-          console.log(hubspotResponse);
-
           if (!hubspotResponse.ok) {
             const errorBody = await hubspotResponse.text();
             throw new Error(
@@ -227,7 +226,8 @@ export default async function handler(
 
           const filteredResults = data.results.filter(
             (contact: HSLead) =>
-              contact.properties.hs_lead_status === "IN_PROGRESS"
+              contact.properties.hs_lead_status === "IN_PROGRESS" ||
+              contact.properties.hs_lead_status === "OPEN"
           );
 
           const results = filteredResults.map((contact: Contact) => ({
@@ -263,7 +263,11 @@ export default async function handler(
           );
         }
       }
-
+      
+      if (allResults.length === 0) {
+        console.log("No leads found for contractor:", email);
+        continue;
+      }
       sendEmail(email, allResults);
       const cost = allResults.length * PRICE_PER_LEAD;
 
