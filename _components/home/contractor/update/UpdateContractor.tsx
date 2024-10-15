@@ -46,6 +46,7 @@ export default function BillingManagement({ email }: BillProps) {
     }
 
     const res2 = await req2.json();
+
     console.log("step 3", res2);
 
     // Create session and process new payment method under the same customer account
@@ -115,53 +116,63 @@ export default function BillingManagement({ email }: BillProps) {
     <div>
       {!isUpdating ? (
         <>
-          <button
-            onClick={() => setIsUpdating(true)}
-            className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mr-4"
-          >
-            Update Billing
-          </button>
+          {isCancelling ? null : (
+            <button
+              onClick={() => setIsUpdating(true)}
+              className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mr-4"
+            >
+              Update Billing
+            </button>
+          )}
         </>
       ) : (
-        <div>
+        <div className="flex flex-col">
           <p>Are you sure you want to update your billing?</p>
-          <button
-            onClick={() => handleUpdateBilling()}
-            className="bg-blue-500 text-white p-2 rounded-xl"
-          >
-            Update Billing
-          </button>
-          <button
-            onClick={() => setIsUpdating(false)}
-            className="bg-blue-500 text-white p-2 rounded-xl"
-          >
-            Back
-          </button>
+          <div className="flex flex-row gap-x-2 mt-2">
+            <button
+              onClick={() => handleUpdateBilling()}
+              className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setIsUpdating(false)}
+              className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded"
+            >
+              No
+            </button>
+          </div>
         </div>
       )}
       {!isCancelling ? (
-        <button
-          onClick={() => setIsCancelling(true)}
-          className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded"
-        >
-          Delete Account
-        </button>
-      ) : (
         <>
-          <p>Are you sure you want to delete your account?</p>
-          <button
-            onClick={() => handleCancelBilling()}
-            className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded"
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => setIsCancelling(false)}
-            className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded"
-          >
-            No
-          </button>
+          {isUpdating ? null : (
+            <button
+              onClick={() => setIsCancelling(true)}
+              className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded"
+            >
+              Delete Account
+            </button>
+          )}
         </>
+      ) : (
+        <div className="flex flex-col mt-4 mb-4">
+          <p>Are you sure you want to delete your account?</p>
+          <div className="flex flex-row gap-x-2 mt-2">
+            <button
+              onClick={() => handleCancelBilling()}
+              className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded"
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => setIsCancelling(false)}
+              className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded"
+            >
+              No
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

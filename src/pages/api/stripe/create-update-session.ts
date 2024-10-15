@@ -18,7 +18,7 @@ export default async function handler(
       const session = await stripe.checkout.sessions.create({
         mode: "setup",
         currency: "usd",
-        success_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/dashboard/update?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/cancel`,
         customer: customerId,
       });
