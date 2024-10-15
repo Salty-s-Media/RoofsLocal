@@ -42,6 +42,8 @@ export default function Login() {
       const result = await response.json();
 
       if (response.ok) {
+        // save for future use
+        localStorage.setItem("email", email as string);
         router.push("/dashboard");
       } else {
         console.error("Login Error: ", result.error);
