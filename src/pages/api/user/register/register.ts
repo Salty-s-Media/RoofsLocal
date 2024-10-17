@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
-// import bcrypt from "bcrypt";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { serialize } from "cookie";
 import { Resend } from "resend";
@@ -31,12 +31,12 @@ export default async function handler(
     stripeId,
   } = req.body;
 
-  // const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(password, 10);
   const sessionId = crypto.randomBytes(16).toString("hex");
-  // const hashedSessionId = await bcrypt.hash(sessionId, 10);
+  const hashedSessionId = await bcrypt.hash(sessionId, 10);
   const expires = new Date(Date.now() + 10 * 24 * 3600 * 1000);
   const verificationToken = crypto.randomBytes(32).toString("hex");
-  // const hashedVerificationToken = await bcrypt.hash(verificationToken, 10);
+  const hashedVerificationToken = await bcrypt.hash(verificationToken, 10);
 
   try {
     const contractor = await prisma.contractor.create({
@@ -48,10 +48,10 @@ export default async function handler(
         phone,
         zipCodes,
         stripeId: stripeId,
-        password: password,
-        sessionId: sessionId,
+        password: hashedPassword,
+        sessionId: hashedSessionId,
         sessionExpiry: expires,
-        verificationToken: verificationToken,
+        verificationToken: hashedVerificationToken,
         isVerified: false,
         boughtZipCodes: zipCodes,
         hubspotKey: hubspotKey,

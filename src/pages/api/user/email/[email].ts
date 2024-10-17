@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
@@ -56,18 +57,27 @@ export default async function handler(
       ...(email !== undefined && { email }),
       ...(zipCodes !== undefined && { zipCodes }),
       ...(stripeId !== undefined && { stripeId }),
-      ...(password !== undefined && { password }),
       ...(hubspotKey !== undefined && { hubspotKey }),
       ...(stripeSessionId !== undefined && { stripeSessionId }),
     };
     console.log(decodedEmail);
     console.log(data);
     try {
-      const contractor = await prisma.contractor.update({
+      const contractor = await prisma.contractor.findUnique({
+        where: { email: decodedEmail },
+      });
+      if (contractor) {
+        const isMatch = await bcrypt.compare(password, contractor.password);
+        if (!isMatch) {
+          res.status(401).json({ error: "Invalid password" });
+          return;
+        }
+      }
+      const updatedContractor = await prisma.contractor.update({
         where: { email: decodedEmail },
         data,
       });
-      res.status(200).json(contractor);
+      res.status(200).json(updatedContractor);
     } catch (error) {
       res.status(500).json({ error: "Failed to update contractor" });
     }
