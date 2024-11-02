@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-// import bcrypt from 'bcrypt';
+import bcrypt from 'bcrypt';
 import { parse } from 'cookie';
 
 const prisma = new PrismaClient();
@@ -26,8 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (contractor.sessionExpiry && new Date(contractor.sessionExpiry) < new Date()) {
         continue;
       }
-      // const match = await bcrypt.compare(sessionId, contractor.sessionId);
-      const match = sessionId === contractor.sessionId;
+      const match = await bcrypt.compare(sessionId, contractor.sessionId);
       if (match) {
         currentUser = contractor;
         break;

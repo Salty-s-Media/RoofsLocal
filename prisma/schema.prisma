@@ -29,6 +29,7 @@ model Contractor {
   stripeSessionId   String   @default("") // stripe checkout session id
   sessionExpiry     DateTime
   verificationToken String
+  resetToken        String   @default("")
   isVerified        Boolean  @default(false)
   phoneVerified     Boolean  @default(false)
   hubspotKey        String   @default("")
