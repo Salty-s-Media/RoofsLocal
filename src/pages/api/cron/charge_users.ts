@@ -256,7 +256,7 @@ export default async function handler(
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${contractor?.ghlApiKey}`,
+                Authorization: `Bearer ${contractor?.ghlKey}`,
                 version: "2021-07-28"
               },
               body: JSON.stringify({
