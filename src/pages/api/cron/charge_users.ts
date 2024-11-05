@@ -152,6 +152,7 @@ export default async function handler(
         phoneVerified: true, // Add phoneVerified to the select
         hubspotKey: true,
         ghlKey: true,
+        ghlLocationId: true,
       },
     });
 
