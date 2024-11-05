@@ -140,17 +140,16 @@ export default async function handler(
             body: JSON.stringify(createData),
           }
         );
+        if (!createContactResponse.ok) {
+          const errorBody = await createContactResponse.text();
+          throw new Error(
+            `HubSpot API request to create contact failed with status ${createContactResponse.status}: ${errorBody}`
+          );
+        }
+  
+        const createContactResult = await createContactResponse.json();
+        console.log("Contact created in HubSpot: ", createContactResult);
       }
-
-      if (!createContactResponse.ok) {
-        const errorBody = await createContactResponse.text();
-        throw new Error(
-          `HubSpot API request to create contact failed with status ${createContactResponse.status}: ${errorBody}`
-        );
-      }
-
-      const createContactResult = await createContactResponse.json();
-      console.log("Contact created in HubSpot: ", createContactResult);
 
       await fetch(
         "https://api.hubapi.com/crm/v3/objects/contacts/batch/update",
