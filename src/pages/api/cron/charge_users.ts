@@ -24,6 +24,7 @@ interface Contact {
     lastname: string;
     email: string;
     phone: string;
+    zip: string;
   };
 }
 
@@ -150,6 +151,7 @@ export default async function handler(
         phone: true, // Add phone to the select
         phoneVerified: true, // Add phoneVerified to the select
         hubspotKey: true,
+        ghlKey: true,
       },
     });
 
@@ -248,6 +250,25 @@ export default async function handler(
               },
               body: JSON.stringify(result.properties),
             });
+            const phoneNumber = result.properties.phone;
+            const formattedPhoneNumber = phoneNumber && !phoneNumber.startsWith('+') ? `+1${phoneNumber}` : phoneNumber;
+            const ghlResponse = await fetch("https://services.leadconnectorhq.com/contacts/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${contractor?.ghlApiKey}`,
+                version: "2021-07-28"
+              },
+              body: JSON.stringify({
+                firstName: result.properties.firstname,
+                lastName: result.properties.lastname,
+                email: result.properties.email,
+                phone: formattedPhoneNumber,
+                postalCode: result.properties.zip,
+                locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
+              }),
+            });
+            console.log("GHL Response: ", ghlResponse);
           });
 
           await batchUpdateContacts(allResultsIds, {
