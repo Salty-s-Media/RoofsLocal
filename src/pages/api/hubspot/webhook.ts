@@ -128,7 +128,7 @@ export default async function handler(
         properties: lead,
       };
 
-      if (contractor?.hubspotKey != null) {
+      if (contractor?.hubspotKey != null && contractor?.hubspotKey != "") {
         const createContactResponse = await fetch(
           "https://api.hubapi.com/crm/v3/objects/contacts",
           {
