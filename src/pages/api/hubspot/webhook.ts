@@ -225,7 +225,7 @@ export default async function handler(
       return;
     }
 
-    res.status(200).json({ message: "Lead imported into contractor Hubspot" });
+    res.status(200).json({ message: "Lead processed by webhook" });
   } else {
     res.setHeader("Allow", ["POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);

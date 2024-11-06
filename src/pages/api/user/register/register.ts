@@ -40,25 +40,6 @@ export default async function handler(
   const hashedVerificationToken = await bcrypt.hash(verificationToken, 10);
 
   try {
-    const contractor = await prisma.contractor.create({
-      data: {
-        firstName,
-        lastName,
-        company,
-        email,
-        phone,
-        zipCodes,
-        stripeId: stripeId,
-        password: hashedPassword,
-        sessionId: hashedSessionId,
-        sessionExpiry: expires,
-        verificationToken: hashedVerificationToken,
-        isVerified: false,
-        boughtZipCodes: zipCodes,
-        hubspotKey: hubspotKey,
-      },
-    });
-
     const cookieOptions = {
       httpOnly: true,
       expires,
@@ -102,6 +83,26 @@ export default async function handler(
     });
 
     console.log("GHL create response: ", ghlResponse);
+    
+    const contractor = await prisma.contractor.create({
+      data: {
+        firstName,
+        lastName,
+        company,
+        email,
+        phone,
+        zipCodes,
+        stripeId: stripeId,
+        password: hashedPassword,
+        sessionId: hashedSessionId,
+        sessionExpiry: expires,
+        verificationToken: hashedVerificationToken,
+        isVerified: false,
+        boughtZipCodes: zipCodes,
+        hubspotKey: hubspotKey,
+        ghlContactId: (await ghlResponse.json()).contact.id
+      },
+    });
 
     res.status(201).json(contractor);
   } catch (error) {
