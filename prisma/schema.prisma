@@ -15,27 +15,29 @@ datasource db {
 }
 
 model Contractor {
-  id                String   @id @default(cuid())
-  firstName         String
-  lastName          String
-  company           String
-  email             String   @unique
-  phone             String   @unique
-  zipCodes          String[]
-  boughtZipCodes    String[]
-  stripeId          String // stripe customer id
-  password          String
-  sessionId         String   @unique // our session ids
-  stripeSessionId   String   @default("") // stripe checkout session id
-  sessionExpiry     DateTime
-  verificationToken String
-  resetToken        String   @default("")
-  isVerified        Boolean  @default(false)
-  phoneVerified     Boolean  @default(false)
-  hubspotKey        String   @default("")
-  ghlKey            String   @default("")
-  ghlLocationId     String   @default("")
-  ghlContactId      String   @default("")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  firstName          String
+  lastName           String
+  company            String
+  email              String   @unique
+  phone              String   @unique
+  zipCodes           String[]
+  boughtZipCodes     String[]
+  stripeId           String // stripe customer id
+  password           String
+  sessionId          String   @unique // our session ids
+  stripeSessionId    String   @default("") // stripe checkout session id
+  sessionExpiry      DateTime
+  verificationToken  String
+  resetToken         String   @default("")
+  isVerified         Boolean  @default(false)
+  phoneVerified      Boolean  @default(false)
+  hubspotKey         String   @default("")
+  ghlKey             String   @default("")
+  ghlLocationId      String   @default("")
+  ghlContactId       String   @default("")
+  ghlPipelineId      String   @default("")
+  ghlPipelineStageId String   @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

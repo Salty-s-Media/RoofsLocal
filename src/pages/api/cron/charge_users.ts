@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { Parser } from "json2csv";
 import Stripe from "stripe";
 import twilio from "twilio";
+import { PipelineStage } from "@hubspot/api-client/lib/codegen/crm/pipelines";
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
@@ -153,6 +154,9 @@ export default async function handler(
         hubspotKey: true,
         ghlKey: true,
         ghlLocationId: true,
+        ghlContactId: true,
+        ghlPipelineId: true,
+        ghlPipelineStageId: true,
       },
     });
 
@@ -270,6 +274,25 @@ export default async function handler(
               }),
             });
             console.log("GHL Response: ", ghlResponse);
+            const ghlData = await ghlResponse.json();
+            const ghlResponse3 = await fetch("https://services.leadconnectorhq.com/opportunities/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${contractor?.ghlKey}`,
+                version: "2021-07-28"
+              },
+              body: JSON.stringify({
+                pipelineId: contractor?.ghlPipelineId ? contractor.ghlPipelineId : "",
+                pipelineStageId: contractor?.ghlPipelineStageId ? contractor.ghlPipelineStageId : "",
+                locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
+                name: `${result.properties.firstname} ${ result.properties.lastname}`,
+                status: "open",
+                contactId: ghlData.contact.id,
+              }),
+            });
+      
+            console.log("GHL create oportunity response: ", ghlResponse);
           });
 
           await batchUpdateContacts(allResultsIds, {
