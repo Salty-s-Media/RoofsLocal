@@ -270,6 +270,23 @@ export default async function handler(
               }),
             });
             console.log("GHL Response: ", ghlResponse);
+            const ghlResponse3 = await fetch("https://services.leadconnectorhq.com/oportunities/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${contractor?.ghlKey}`,
+                version: "2021-07-28"
+              },
+              body: JSON.stringify({
+                pipelineId: contractor?.ghlPipelineId ? contractor.ghlPipelineId : "",
+                locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
+                name: `${result.properties.firstname} ${ result.properties.lastname}`,
+                status: "open",
+                contactId: (await ghlResponse.json()).contact.id,
+              }),
+            });
+      
+            console.log("GHL create oportunity response: ", ghlResponse);
           });
 
           await batchUpdateContacts(allResultsIds, {
