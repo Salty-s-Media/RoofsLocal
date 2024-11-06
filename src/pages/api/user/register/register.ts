@@ -7,7 +7,8 @@ import { Resend } from "resend";
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
-console.log(resend);
+const GHL_API_KEY = process.env.GHL_API_KEY;
+const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
 
 export default async function handler(
   req: NextApiRequest,
@@ -39,25 +40,6 @@ export default async function handler(
   const hashedVerificationToken = await bcrypt.hash(verificationToken, 10);
 
   try {
-    const contractor = await prisma.contractor.create({
-      data: {
-        firstName,
-        lastName,
-        company,
-        email,
-        phone,
-        zipCodes,
-        stripeId: stripeId,
-        password: hashedPassword,
-        sessionId: hashedSessionId,
-        sessionExpiry: expires,
-        verificationToken: hashedVerificationToken,
-        isVerified: false,
-        boughtZipCodes: zipCodes,
-        hubspotKey: hubspotKey,
-      },
-    });
-
     const cookieOptions = {
       httpOnly: true,
       expires,
@@ -81,6 +63,46 @@ export default async function handler(
     });
 
     console.log("Resend response: ", resp);
+
+    const formattedPhoneNumber = phone && !phone.startsWith('+') ? `+1${phone}` : phone;
+
+    const ghlResponse = await fetch("https://services.leadconnectorhq.com/contacts/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${GHL_API_KEY}`,
+        version: "2021-07-28"
+      },
+      body: JSON.stringify({
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        phone: formattedPhoneNumber,
+        locationId: GHL_LOCATION_ID,
+      }),
+    });
+
+    console.log("GHL create response: ", ghlResponse);
+    
+    const contractor = await prisma.contractor.create({
+      data: {
+        firstName,
+        lastName,
+        company,
+        email,
+        phone,
+        zipCodes,
+        stripeId: stripeId,
+        password: hashedPassword,
+        sessionId: hashedSessionId,
+        sessionExpiry: expires,
+        verificationToken: hashedVerificationToken,
+        isVerified: false,
+        boughtZipCodes: zipCodes,
+        hubspotKey: hubspotKey,
+        ghlContactId: (await ghlResponse.json()).contact.id
+      },
+    });
 
     res.status(201).json(contractor);
   } catch (error) {

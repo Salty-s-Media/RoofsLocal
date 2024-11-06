@@ -33,6 +33,9 @@ model Contractor {
   isVerified        Boolean  @default(false)
   phoneVerified     Boolean  @default(false)
   hubspotKey        String   @default("")
+  ghlKey            String   @default("")
+  ghlLocationId     String   @default("")
+  ghlContactId      String   @default("")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

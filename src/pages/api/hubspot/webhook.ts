@@ -1,10 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
 import { NextApiRequest, NextApiResponse } from "next";
+import { format } from "path";
 
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const resend = new Resend(process.env.RESEND_API_KEY);
+const GHL_API_KEY = process.env.GHL_API_KEY;
+const saltysMediaNumber = process.env.GHL_SALTYS_MEDIA_PHONE_NUMBER;
 
 interface WebhookData {
   total: number;
@@ -101,7 +104,7 @@ export default async function handler(
       const contractor = await prisma.contractor.findFirst({
         where: {
           zipCodes: {
-            has: zip,
+            has: zip,    
           },
         },
       });
@@ -125,27 +128,28 @@ export default async function handler(
         properties: lead,
       };
 
-      const createContactResponse = await fetch(
-        "https://api.hubapi.com/crm/v3/objects/contacts",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${contractorKey}`,
-          },
-          body: JSON.stringify(createData),
-        }
-      );
-
-      if (!createContactResponse.ok) {
-        const errorBody = await createContactResponse.text();
-        throw new Error(
-          `HubSpot API request to create contact failed with status ${createContactResponse.status}: ${errorBody}`
+      if (contractor?.hubspotKey != null && contractor?.hubspotKey != "") {
+        const createContactResponse = await fetch(
+          "https://api.hubapi.com/crm/v3/objects/contacts",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${contractorKey}`,
+            },
+            body: JSON.stringify(createData),
+          }
         );
+        if (!createContactResponse.ok) {
+          const errorBody = await createContactResponse.text();
+          throw new Error(
+            `HubSpot API request to create contact failed with status ${createContactResponse.status}: ${errorBody}`
+          );
+        }
+  
+        const createContactResult = await createContactResponse.json();
+        console.log("Contact created in HubSpot: ", createContactResult);
       }
-
-      const createContactResult = await createContactResponse.json();
-      console.log("Contact created in HubSpot: ", createContactResult);
 
       await fetch(
         "https://api.hubapi.com/crm/v3/objects/contacts/batch/update",
@@ -174,6 +178,43 @@ export default async function handler(
         subject: "Roofs Local: New Lead",
         text: `A new lead was just pushed to you hubspot account by Roofs Local! \n${lead.firstname} ${lead.lastname} - ${lead.email} - ${lead.phone} - ${lead.zip}`,
       });
+ 
+      const phoneNumber = contractor?.phone;
+      const formattedPhoneNumber = phoneNumber && !phoneNumber.startsWith('+') ? `+1${phoneNumber}` : phoneNumber;
+      
+      const ghlResponse = await fetch("https://services.leadconnectorhq.com/contacts/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${contractor?.ghlKey}`,
+          version: "2021-07-28"
+        },
+        body: JSON.stringify({
+          firstName: lead.firstname,
+          lastName: lead.lastname,
+          email: lead.email,
+          phone: formattedPhoneNumber,
+          postalCode: lead.zip,
+          locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
+        }),
+      });
+      console.log("GHL create response: ", ghlResponse);
+      const ghlResponse2 = await fetch("https://services.leadconnectorhq.com/conversations/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${GHL_API_KEY}`,
+          version: "2021-04-15"
+        },
+        body: JSON.stringify({
+          type: "SMS",
+          contactId: contractor?.ghlContactId ? contractor.ghlContactId : "",
+          message: `A new lead was just pushed to you hubspot account by Roofs Local! \n${lead.firstname} ${lead.lastname} - ${lead.email} - ${lead.phone} - ${lead.zip}`,
+          fromNumber: saltysMediaNumber,
+          toNumber: formattedPhoneNumber
+        }),
+      });
+      console.log("GHL text response: ", ghlResponse2);
     } catch (error) {
       console.error(
         `Error processing webhook data from HubSpot:`,
@@ -184,7 +225,7 @@ export default async function handler(
       return;
     }
 
-    res.status(200).json({ message: "Lead imported into contractor Hubspot" });
+    res.status(200).json({ message: "Lead processed by webhook" });
   } else {
     res.setHeader("Allow", ["POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
