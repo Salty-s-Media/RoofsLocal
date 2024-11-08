@@ -77,7 +77,9 @@ async function getHubspotLeads(status: string) {
   }
 
   const data = await hubspotResponse.json();
-  return data.results.map((result: any) => result.properties);
+  return data.results.map((result: any) => ({
+    ...result.properties, id: result.id
+  }));
 }
 
 
@@ -262,7 +264,8 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
         if (payment.status != "succeeded") {
           console.error("Payment didn't process:", payment.status);
           continue;
-        }
+        } 
+        console.log(`Charged ${contractor.email} ${cost/100} USD for ${leads.length} leads`);
         sendEmail(contractor, leads);
         await updateHubspotLeads(leads);
       }
