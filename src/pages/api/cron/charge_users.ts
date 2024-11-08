@@ -226,8 +226,8 @@ async function createGHLOpporunity(contactId: string, contact: any, contractor: 
 }
 
 
-function mergeLeadsMaps(map1: { [key: string]: Contact[] }, map2: { [key: string]: Contact[] }) {
-  const mergedMap: { [key: string]: Contact[] } = { ...map1 };
+function mergeLeadsMaps(map1: { [key: string]: any[] }, map2: { [key: string]: any[] }) {
+  const mergedMap: { [key: string]: any[] } = { ...map1 };
 
   for (const key in map2) {
     if (mergedMap[key]) {
