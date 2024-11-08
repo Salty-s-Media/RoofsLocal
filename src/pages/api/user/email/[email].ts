@@ -60,8 +60,9 @@ export default async function handler(
       ...(hubspotKey !== undefined && { hubspotKey }),
       ...(stripeSessionId !== undefined && { stripeSessionId }),
     };
-    console.log(decodedEmail);
-    console.log(data);
+
+    console.log(`Updating ${decodedEmail} data: ${data}`);
+
     try {
       const contractor = await prisma.contractor.findUnique({
         where: { email: decodedEmail },

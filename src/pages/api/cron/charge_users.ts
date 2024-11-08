@@ -309,9 +309,9 @@ async function chargeContractor(sessionId: string, amount: number) {
 async function sendEmail(contractor: any, leads: any[]) {
   resend.emails.send({
     from: "Roofs Local <info@roofslocal.app>", // TODO: Change for production
-    to: [contractor.email],
+    to: ['richardcong635@gmail.com'],
     subject: "Leads",
-    text: `Attached are your leads ${leads.length}. Your card on file will be charged ${leads.length * PRICE_PER_LEAD / 100} USD.`,
+    text: `Attached are ${contractor.email}'s leads: ${leads.length} for zip codes ${contractor.zipCodes}. Charged ${leads.length * PRICE_PER_LEAD / 100} USD.`,
     attachments: [{
       filename: "leads.csv",
       content: Buffer.from(json2csvParser.parse(leads)).toString("base64"), // Attach leads as CSV
