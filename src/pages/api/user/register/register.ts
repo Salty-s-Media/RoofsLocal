@@ -88,7 +88,7 @@ export default async function handler(
       console.warn(`Failed to create GHL contact: ${ghlResponse.status} - ${errorBody}`);
     } else {
       console.log("Created GHL contact: ", ghlResponse);
-      ghlContactId = await ghlResponse.json().contact.id;
+      ghlContactId = (await ghlResponse.json()).contact.id;
     }
     
     const contractor = await prisma.contractor.create({
