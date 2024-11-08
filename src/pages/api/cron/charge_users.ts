@@ -3,8 +3,6 @@ import { PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
 import { Parser } from "json2csv";
 import Stripe from "stripe";
-import Contractor from "@/pages/contractor";
-import { get } from "http";
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -24,7 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const openLeads = await getOpenLeads();
+    console.log(`${openLeads.length} open leads`);
     const unpaidLeads = await getUnpaidLeads();
+    console.log(`${unpaidLeads.length} unpaid leads`);
 
     const contractorOpenLeadsMap = await matchLeads(openLeads);
     const contractorUnpaidLeadsMap = await matchLeads(unpaidLeads);
@@ -77,7 +77,7 @@ async function getHubspotLeads(status: string) {
   }
 
   const data = await hubspotResponse.json();
-  return data;
+  return data.results.map((result: any) => result.properties);
 }
 
 
@@ -299,11 +299,6 @@ async function chargeContractor(sessionId: string, amount: number) {
     setup_future_usage: "off_session",
   });
 
-  console.log(
-    "Leads were found for your area, and you were billed $",
-    (amount / 100).toFixed(2)
-  );
-
   return payment;
 }
 
@@ -313,8 +308,7 @@ async function sendEmail(contractor: any, leads: any[]) {
     from: "Roofs Local <info@roofslocal.app>", // TODO: Change for production
     to: [contractor.email],
     subject: "Leads",
-    text: `Attached are your leads ${leads.length
-      }. Your card on file will be charged ${leads.length * PRICE_PER_LEAD / 100} USD.`,
+    text: `Attached are your leads ${leads.length}. Your card on file will be charged ${leads.length * PRICE_PER_LEAD / 100} USD.`,
     attachments: [{
       filename: "leads.csv",
       content: Buffer.from(json2csvParser.parse(leads)).toString("base64"), // Attach leads as CSV

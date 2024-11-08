@@ -25,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const zip = contact.zip;
     const contractor = await getMatchingContractor(zip);
     if (!contractor) {
+      console.warn(`No contractor found for zip code: ${zip}, nothing done`);
       res.status(200).send({ message: `No contractor found for zip code: ${zip}, nothing done` });
     }
     await importHubspotContact(contact, contractor);
@@ -188,7 +189,7 @@ async function createGHLContact(contact: any, contractor: any) {
 
   if (!ghlResponse.ok) {
     const errorBody = await ghlResponse.text();
-    console.warn(`Failed to create contact: ${ghlResponse.status} - ${errorBody}`);
+    console.warn(`Failed to create GHL contact: ${ghlResponse.status} - ${errorBody}`);
     return null;
   }
 
