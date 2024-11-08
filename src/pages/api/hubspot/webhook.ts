@@ -34,8 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (ghlData) {
       await createGHLOpporunity(ghlData.contact.id, contact, contractor);
     }
-    await sendGHLText(contact, contractor);
-    sendSummaryEmail(contact, contractor);
+    // await sendGHLText(contact, contractor);
+    // sendSummaryEmail(contact, contractor);
     res.status(200).send({ message: `Lead ${objectId} processed by webhook` });
   } catch (error) {
     console.error("Error processing webhook data from HubSpot:", error);

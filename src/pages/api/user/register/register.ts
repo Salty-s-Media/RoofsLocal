@@ -82,7 +82,14 @@ export default async function handler(
       }),
     });
 
-    console.log("GHL create response: ", ghlResponse);
+    let ghlContactId = "";
+    if (!ghlResponse.ok) {
+      const errorBody = await ghlResponse.text();
+      console.warn(`Failed to create GHL contact: ${ghlResponse.status} - ${errorBody}`);
+    } else {
+      console.log("Created GHL contact: ", ghlResponse);
+      ghlContactId = await ghlResponse.json().contact.id;
+    }
     
     const contractor = await prisma.contractor.create({
       data: {
@@ -100,8 +107,15 @@ export default async function handler(
         isVerified: false,
         boughtZipCodes: zipCodes,
         hubspotKey: hubspotKey,
-        ghlContactId: (await ghlResponse.json()).contact.id
+        ghlContactId: ghlContactId
       },
+    });
+
+    resend.emails.send({
+      from: "Roofs Local <info@roofslocal.app>",
+      to: ["richardcong635@gmail.com"],
+      subject: "New contractor",
+      text: `New contractor registered: ${contractor.company} - ${contractor.email} - ${contractor.phone}`,
     });
 
     res.status(201).json(contractor);
