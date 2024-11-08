@@ -15,25 +15,6 @@ const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const PRICE_PER_LEAD = parseFloat(process.env.PRICE_PER_LEAD || "100");
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
-interface Contact {
-  id: string;
-  properties: {
-    firstname: string;
-    lastname: string;
-    email: string;
-    phone: string;
-    zip: string;
-  };
-}
-
-interface Lead {
-  id: string;
-  properties: {
-    owner: string;
-    hs_lead_status: string;
-  };
-}
-
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -342,7 +323,7 @@ async function sendEmail(contractor: any, leads: any[]) {
 }
 
 
-async function updateHubspotLeads(leads: Lead[]) {
+async function updateHubspotLeads(leads: any[]) {
   const updateRequests = leads.map((lead) => ({
     id: lead.id,
     properties: { "hs_lead_status": "CONNECTED" },
