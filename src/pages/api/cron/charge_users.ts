@@ -136,6 +136,7 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
 
     const leads = contractorLeadsMap[contractorId];
     for (const lead of leads) {
+      await delay(1000);
       await importHubspotContact(lead, contractor);
       const ghlData = await createGHLContact(lead, contractor);
       if (ghlData) {
@@ -261,6 +262,7 @@ function mergeLeadsMaps(map1: { [key: string]: Contact[] }, map2: { [key: string
 
 async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
   for (const contractorId in contractorLeadsMap) {
+    await delay(1000);
     try {
       const contractor = await prisma.contractor.findUnique({
         where: { id: contractorId },
@@ -367,4 +369,9 @@ async function updateHubspotLeads(leads: Lead[]) {
   const responseBody = await response.json();
   console.log("Updated HubSpot leads:", responseBody);
   return responseBody;
+}
+
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
