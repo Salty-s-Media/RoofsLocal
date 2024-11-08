@@ -11,36 +11,34 @@ const GHL_SALTYS_MEDIA_PHONE_NUMBER = process.env.GHL_SALTYS_MEDIA_PHONE_NUMBER;
 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === "POST") {
-    const { body } = req;
-
-    console.log("Webhook received:", body[0]);
-    const objectId = body[0].objectId;
-
-    try {
-      const contact = await getHubspotContact(objectId);
-      const zip = contact.zip;
-      const contractor = await getMatchingContractor(zip);
-      if (!contractor) {
-        res.status(200).send({ message: `No contractor found for zip code: ${zip}, nothing done` });
-      }
-      await importHubspotContact(contact, contractor);
-      await updateHubspotContact(objectId);
-      const ghlData = await createGHLContact(contact, contractor);
-      if (ghlData) {
-        await createGHLOpporunity(ghlData.contact.id, contact, contractor);
-      }
-      await sendGHLText(contact, contractor);
-      await sendSummaryEmail(contact, contractor);
-      res.status(200).send({ message: `Lead ${objectId} processed by webhook` });
-    } catch (error) {
-      console.error("Error processing webhook data from HubSpot:", error);
-      res.status(500).send({ error: error });
-    }
-  }
-  else {
+  if (req.method != "POST") {
     res.setHeader("Allow", ["POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
+
+  const { body } = req;
+  console.log("Webhook received:", body[0]);
+  const objectId = body[0].objectId;
+
+  try {
+    const contact = await getHubspotContact(objectId);
+    const zip = contact.zip;
+    const contractor = await getMatchingContractor(zip);
+    if (!contractor) {
+      res.status(200).send({ message: `No contractor found for zip code: ${zip}, nothing done` });
+    }
+    await importHubspotContact(contact, contractor);
+    await updateHubspotContact(objectId);
+    const ghlData = await createGHLContact(contact, contractor);
+    if (ghlData) {
+      await createGHLOpporunity(ghlData.contact.id, contact, contractor);
+    }
+    await sendGHLText(contact, contractor);
+    sendSummaryEmail(contact, contractor);
+    res.status(200).send({ message: `Lead ${objectId} processed by webhook` });
+  } catch (error) {
+    console.error("Error processing webhook data from HubSpot:", error);
+    res.status(500).send({ error: error });
   }
 }
 
@@ -257,7 +255,7 @@ async function sendGHLText(contact: any, contractor: any) {
 }
 
 
-async function sendSummaryEmail(contact: any, contractor: any) {
+function sendSummaryEmail(contact: any, contractor: any) {
   resend.emails.send({
     from: "Roofs Local <info@roofslocal.app>",
     to: contractor?.email ? [contractor.email] : [],
