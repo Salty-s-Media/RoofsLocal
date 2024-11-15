@@ -67,7 +67,7 @@ async function getHubspotLeads(status: string) {
           value: status,
         }]
       }],
-      properties: ["id", "firstname", "lastname", "email", "phone", "zip"],
+      properties: ["id", "firstname", "lastname", "email", "phone", "street", "cityname", "zip"],
     })
   });
 
