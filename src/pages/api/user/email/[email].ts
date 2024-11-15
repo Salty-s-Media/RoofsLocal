@@ -33,7 +33,7 @@ export default async function handler(
         res.status(404).json({ error: "Contractor not found" });
       }
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch contractor" });
+      res.status(500).json({ error: `Failed to fetch contractor: ${error}` });
     }
   } else if (req.method === "PUT") {
     const {
@@ -61,17 +61,19 @@ export default async function handler(
       ...(stripeSessionId !== undefined && { stripeSessionId }),
     };
 
-    console.log(`Updating ${decodedEmail} data: ${data}`);
+    console.log(`Updating ${decodedEmail} data: ${JSON.stringify(data, null, 2)}`);
 
     try {
       const contractor = await prisma.contractor.findUnique({
         where: { email: decodedEmail },
       });
       if (contractor) {
-        const isMatch = await bcrypt.compare(password, contractor.password);
-        if (!isMatch) {
-          res.status(401).json({ error: "Invalid password" });
-          return;
+        if (!stripeSessionId) {
+          const isMatch = await bcrypt.compare(password, contractor.password);
+          if (!isMatch) {
+            res.status(401).json({ error: "Invalid password" });
+            return;
+          }
         }
       }
       const updatedContractor = await prisma.contractor.update({
@@ -80,7 +82,7 @@ export default async function handler(
       });
       res.status(200).json(updatedContractor);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update contractor" });
+      res.status(500).json({ error: `Failed to update contractor: ${error}` });
     }
   } else if (req.method === "DELETE") {
     const { email } = req.body;
@@ -90,7 +92,7 @@ export default async function handler(
       });
       res.status(204).end();
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete contractor" });
+      res.status(500).json({ error: `Failed to delete contractor: ${error}` });
     }
   } else {
     res.setHeader("Allow", ["GET", "PUT", "DELETE"]);
