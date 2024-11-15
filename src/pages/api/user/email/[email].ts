@@ -55,7 +55,7 @@ export default async function handler(
       ...(company !== undefined && { company }),
       ...(phone !== undefined && { phone }),
       ...(email !== undefined && { email }),
-      ...(zipCodes !== undefined && { zipCodes }),
+      ...(zipCodes !== undefined && { zipCodes: zipCodes.map((zip: string) => zip.substring(0, 5)) }),
       ...(stripeId !== undefined && { stripeId }),
       ...(hubspotKey !== undefined && { hubspotKey }),
       ...(stripeSessionId !== undefined && { stripeSessionId }),
