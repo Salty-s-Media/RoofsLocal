@@ -121,6 +121,7 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
     for (const lead of leads) {
       await delay(1000);
       await importHubspotContact(lead, contractor);
+      await updateHubspotCompany(lead, contractor);
       const ghlData = await createGHLContact(lead, contractor);
       if (ghlData) {
         await createGHLOpporunity(ghlData.contact.id, lead, contractor);
@@ -162,6 +163,34 @@ async function importHubspotContact(contact: any, contractor: any) {
     const createContactResult = await hubspotResponse.json();
     console.log("HubSpot contact created: ", createContactResult);
   }
+}
+
+
+async function updateHubspotCompany(contact: any, contractor: any) {
+  const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/batch/update", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+    },
+    body: JSON.stringify({
+      inputs: [{
+        id: contact.id,
+        properties: {
+          company: contractor?.company || "Unknown Company",
+        }
+      }]
+    })
+  });
+
+  if (!hubspotResponse.ok) {
+    const errorBody = await hubspotResponse.text();
+    console.warn(`Failed to update HubSpot contact: ${hubspotResponse.status} - ${errorBody}`);
+    return;
+  }
+
+  const updateContactResult = await hubspotResponse.json();
+  console.log("HubSpot contact updated: ", updateContactResult);
 }
 
 

@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(200).send({ message: `No contractor found for zip code: ${zip}, nothing done` });
     }
     await importHubspotContact(contact, contractor);
-    await updateHubspotContact(objectId);
+    await updateHubspotContact(objectId, contractor?.company || "Unknown Company");
     const ghlData = await createGHLContact(contact, contractor);
     if (ghlData) {
       await createGHLOpporunity(ghlData.contact.id, contact, contractor);
@@ -138,7 +138,7 @@ async function importHubspotContact(contact: any, contractor: any) {
 }
 
 
-async function updateHubspotContact(objectId: string) {
+async function updateHubspotContact(objectId: string, company: string) {
   const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/batch/update", {
     method: "POST",
     headers: {
@@ -149,6 +149,7 @@ async function updateHubspotContact(objectId: string) {
       inputs: [{
         id: objectId,
         properties: {
+          company: company,
           hs_lead_status: "IN_PROGRESS",
         }
       }]
