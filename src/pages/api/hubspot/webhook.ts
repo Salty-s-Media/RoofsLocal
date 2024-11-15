@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const contact = await getHubspotContact(objectId);
-    const zip = contact.zip;
+    const zip = contact.zip.substring(0, 5);
     const contractor = await getMatchingContractor(zip);
     if (!contractor) {
       console.warn(`No contractor found for zip code: ${zip}, nothing done`);

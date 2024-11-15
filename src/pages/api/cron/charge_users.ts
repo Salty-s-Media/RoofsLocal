@@ -90,7 +90,7 @@ async function matchLeads(leads: any[]) {
     const contractor = await prisma.contractor.findFirst({
       where: {
         zipCodes: {
-          has: lead.zip,
+          has: lead.zip.substring(0, 5),
         }
       }
     });
