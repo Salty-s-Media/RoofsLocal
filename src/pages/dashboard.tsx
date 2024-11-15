@@ -35,7 +35,6 @@ interface Contact {
 export default function Dashboard() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState<UserData>({} as UserData);
-  const [leads, setLeads] = useState([] as Contact[]);
   const [error, setError] = useState(false);
   const zips = useRef([] as string[]);
 
