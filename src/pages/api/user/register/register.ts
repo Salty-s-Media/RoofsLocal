@@ -32,6 +32,8 @@ export default async function handler(
     stripeId,
   } = req.body;
 
+  const formattedZipCodes = zipCodes.map((zip: string) => zip.substring(0, 5));
+
   const hashedPassword = await bcrypt.hash(password, 10);
   const sessionId = crypto.randomBytes(16).toString("hex");
   const hashedSessionId = await bcrypt.hash(sessionId, 10);
@@ -98,7 +100,7 @@ export default async function handler(
         company,
         email,
         phone,
-        zipCodes,
+        zipCodes: formattedZipCodes,
         stripeId: stripeId,
         password: hashedPassword,
         sessionId: hashedSessionId,
