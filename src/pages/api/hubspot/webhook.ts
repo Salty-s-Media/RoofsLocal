@@ -60,9 +60,8 @@ async function getHubspotContact(objectId: string) {
       "lastname",
       "email",
       "phone",
-      // "plan",
-      // "job_status",
-      "contact_owner",
+      "street",
+      "cityname",
       "zip",
     ]
   };
