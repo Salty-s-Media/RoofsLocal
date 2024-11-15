@@ -69,28 +69,6 @@ export default function Dashboard() {
     zips.current = user.zipCodes;
   }, []);
 
-  // const getMyOrders = async () => {
-  //   try {
-  //     const response = await fetch("/api/hubspot/get-purchased-leads", {
-  //       method: "POST",
-  //       headers: {
-  //         contentType: "application/json",
-  //       },
-  //       body: JSON.stringify({ zipCodes: user.zipCodes }),
-  //     });
-
-  //     if (!response.ok) {
-  //       console.error("POST error", response.status);
-  //       return;
-  //     }
-
-  //     const result = await response.json();
-  //     setLeads(result.customerInfo);
-  //   } catch (error) {
-  //     console.error("Get My Orders Error: ", error);
-  //   }
-  // };
-
   const updateInfomation = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -434,7 +412,6 @@ export default function Dashboard() {
           </button>
         </form>
 
-        <br></br>
         <h2 className="text-2xl font-semibold mt-4 mb-4">Account Settings</h2>
         <BillingManagement email={user.email} />
         <br></br>
