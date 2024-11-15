@@ -14,6 +14,7 @@ export default function CancelPage() {
           Your registration process has been cancelled. You may return to the
           Home page.
         </p>
+        <br></br>
         <button
           onClick={() => router.push("/")}
           className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
