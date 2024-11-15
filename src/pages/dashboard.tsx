@@ -70,27 +70,27 @@ export default function Dashboard() {
     zips.current = user.zipCodes;
   }, []);
 
-  const getMyOrders = async () => {
-    try {
-      const response = await fetch("/api/hubspot/get-purchased-leads", {
-        method: "POST",
-        headers: {
-          contentType: "application/json",
-        },
-        body: JSON.stringify({ zipCodes: user.zipCodes }),
-      });
+  // const getMyOrders = async () => {
+  //   try {
+  //     const response = await fetch("/api/hubspot/get-purchased-leads", {
+  //       method: "POST",
+  //       headers: {
+  //         contentType: "application/json",
+  //       },
+  //       body: JSON.stringify({ zipCodes: user.zipCodes }),
+  //     });
 
-      if (!response.ok) {
-        console.error("POST error", response.status);
-        return;
-      }
+  //     if (!response.ok) {
+  //       console.error("POST error", response.status);
+  //       return;
+  //     }
 
-      const result = await response.json();
-      setLeads(result.customerInfo);
-    } catch (error) {
-      console.error("Get My Orders Error: ", error);
-    }
-  };
+  //     const result = await response.json();
+  //     setLeads(result.customerInfo);
+  //   } catch (error) {
+  //     console.error("Get My Orders Error: ", error);
+  //   }
+  // };
 
   const updateInfomation = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -199,7 +199,11 @@ export default function Dashboard() {
 
     const newZips: string[] = [];
 
-    newZips.push(...(data.zipCodes as unknown as string).split(",").map(zip => zip.trim()));
+    newZips.push(
+      ...(data.zipCodes as unknown as string)
+        .split(",")
+        .map((zip) => zip.trim())
+    );
     console.log("new zips: ", newZips);
 
     const pattern = /^\d{5}(-\d{4})?$/;
@@ -287,7 +291,11 @@ export default function Dashboard() {
                   <p>Email: {user.email}</p>
                   <p>Phone: {user.phone}</p>
                   <p>Zip Codes:</p>
-                  <p>{user.zipCodes ? user.zipCodes.join(', ') : 'No zip codes available'}</p>
+                  <p>
+                    {user.zipCodes
+                      ? user.zipCodes.join(", ")
+                      : "No zip codes available"}
+                  </p>
                 </div>
                 <div>
                   <h3>Account Information</h3>
@@ -298,29 +306,6 @@ export default function Dashboard() {
               </div>
 
               <br></br>
-              <h2 className="text-2xl font-semibold mt-4 mb-4">Orders</h2>
-              <div>
-                {leads.length === 0 ? (
-                  <p>No orders found</p>
-                ) : (
-                  <p>Orders were found: </p>
-                )}
-                {leads.map((contact) => (
-                  <div key={contact.id}>
-                    <p>First Name: {contact.firstname}</p>
-                    <p>Last Name: {contact.lastname}</p>
-                    <p>Email: {contact.email}</p>
-                    <p>Phone: {contact.phone}</p>
-                    <br></br>
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={getMyOrders}
-                className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
-              >
-                Show all Orders
-              </button>
             </div>
           </div>
         )}
