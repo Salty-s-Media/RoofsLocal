@@ -174,6 +174,8 @@ async function createGHLContact(contact: any, contractor: any) {
     lastName: contact.lastname,
     email: contact.email,
     phone: formattedPhoneNumber,
+    address1: contact.street,
+    city: contact.cityname,
     postalCode: contact.zip,
     locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
   }
