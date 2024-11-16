@@ -27,6 +27,7 @@ model Contractor {
   password           String
   sessionId          String   @unique // our session ids
   stripeSessionId    String   @default("") // stripe checkout session id
+  pricePerLead       Float    @default(25000)
   sessionExpiry      DateTime
   verificationToken  String
   resetToken         String   @default("")

@@ -10,7 +10,6 @@ const json2csvParser = new Parser();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
-const PRICE_PER_LEAD = parseFloat(process.env.PRICE_PER_LEAD || "100");
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
 
@@ -288,7 +287,7 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       }
   
       const leads = contractorLeadsMap[contractorId];
-      const cost = leads.length * PRICE_PER_LEAD;
+      const cost = leads.length * contractor.pricePerLead;
   
       if (leads.length > 0) {
         const payment = await chargeContractor(contractor.stripeSessionId, cost);
@@ -342,7 +341,7 @@ async function sendEmail(contractor: any, leads: any[]) {
     from: "Roofs Local <info@roofslocal.app>", // TODO: Change for production
     to: ['richardcong635@gmail.com'],
     subject: "Leads",
-    text: `Attached are ${contractor.email}'s leads: ${leads.length} for zip codes ${contractor.zipCodes}. Charged ${leads.length * PRICE_PER_LEAD / 100} USD.`,
+    text: `Attached are ${contractor.email}'s leads: ${leads.length} for zip codes ${contractor.zipCodes}. Charged ${leads.length * contractor.pricePerLead / 100} USD.`,
     attachments: [{
       filename: "leads.csv",
       content: Buffer.from(json2csvParser.parse(leads)).toString("base64"), // Attach leads as CSV
