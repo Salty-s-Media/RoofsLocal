@@ -10,7 +10,6 @@ const json2csvParser = new Parser();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
-const PRICE_PER_LEAD = parseFloat(process.env.PRICE_PER_LEAD || "100");
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
 
@@ -288,7 +287,7 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       }
   
       const leads = contractorLeadsMap[contractorId];
-      const cost = leads.length * PRICE_PER_LEAD;
+      const cost = leads.length * contractor.pricePerLead;
   
       if (leads.length > 0) {
         const payment = await chargeContractor(contractor.stripeSessionId, cost);
