@@ -12,6 +12,30 @@ interface FormStruct {
 }
 
 export default function ContractorRegistration() {
+  function isPasswordValid(password: string) {
+    const passwordInput = document.getElementById("password");
+    const errorSpan = document.getElementById("password-error");
+    // Check for at least one uppercase letter
+    const hasUppercase = /[A-Z]/.test(password);
+    // Check for at least one symbol
+    const hasSymbol = /[\W_]/.test(password);
+    // has number
+    const hasNumber = /([0-9]+)/.test(password);
+
+    if (passwordInput && errorSpan) {
+      if (!hasUppercase || !hasSymbol || !hasNumber) {
+        passwordInput.style.border = "2px solid red";
+        errorSpan.style.color = "red";
+        errorSpan.textContent =
+          "Password must include at least one uppercase letter, one symbol, and one number.";
+      } else {
+        passwordInput.style.border = "2px solid green";
+        errorSpan.style.color = "green";
+        errorSpan.textContent = "Your password is valid!";
+      }
+    }
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -177,9 +201,15 @@ export default function ContractorRegistration() {
                 name="password"
                 type="password"
                 placeholder="abc123$"
+                minLength={7}
+                onChange={(string) => isPasswordValid(string.target.value)}
                 required
                 className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />
+              <p
+                id="password-error"
+                className="text-sm text-center max-w-[15rem]"
+              ></p>
             </div>
             <div>
               <label

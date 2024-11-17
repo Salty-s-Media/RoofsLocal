@@ -167,8 +167,7 @@ export default function Dashboard() {
       }
 
       const info = await companyInfo.json();
-      // const companyName = info.company;
-      // const companyEmail = info.email;
+
       zipCodes.push(...info.zipCodes); // push all the existing zip codes into the array
     } catch (error) {
       console.error("Update Information Error: ", error);
@@ -252,6 +251,50 @@ export default function Dashboard() {
     }
   };
 
+  const deleteZipCodes = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    if (!formData) return;
+
+    event.currentTarget.reset();
+
+    const data = Object.fromEntries(formData.entries());
+
+    // user can see all zips they own in user.zipCodes
+    // format the zips
+    const newZips: string[] = [];
+
+    newZips.push(
+      ...(data.zipCodes as unknown as string)
+        .split(",")
+        .map((zip) => zip.trim())
+    );
+
+    // delete the ones that are in the form data.
+    const del = await fetch(`/api/user/email/${user.email}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ zipCodes: newZips, password: data.password }),
+    });
+
+    if (del.status === 200) {
+      document.getElementById("success1")!.innerText = "Zip Codes Deleted!";
+      setTimeout(() => {
+        document.getElementById("success1")!.innerText = "";
+      }, 4000);
+    } else {
+      document.getElementById("error1")!.innerText =
+        "Error deleting zip codes.";
+      setTimeout(() => {
+        document.getElementById("error1")!.innerText = "";
+      }, 4000);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full justify-center flex flex-col my-6">
       <div className="ml-12 mr-12">
@@ -330,6 +373,50 @@ export default function Dashboard() {
           </div>
         </form>
         <br></br>
+        <br></br>
+        <form
+          onSubmit={deleteZipCodes}
+          className="bg-darkG rounded-md p-8 max-w-[512px]"
+        >
+          <h1 className="mb-4 font-bold text-2xl">Delete Zip Codes</h1>
+          <p className="mb-4">
+            In order for ZIP codes to be deleted properly, you must sumbit the
+            zip codes as a comma seperated list.
+          </p>
+          <label htmlFor="zipCodes" className="text-md font-bold text-white">
+            Zip Codes
+          </label>
+          <input
+            type="text"
+            name="zipCodes"
+            className="mt-1 mb-4 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+            placeholder={"12345, 12346, 12347..."}
+          />
+
+          <label htmlFor="password" className="text-md font-bold text-white">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            required
+            className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
+          />
+          <button
+            className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
+            type="submit"
+          >
+            Delete Zip Codes
+          </button>
+          <div className="mt-4 mb-4">
+            <p
+              id="success1"
+              className="text-md font-semibold text-green-600"
+            ></p>
+            <p id="error1" className="text-md font-semibold text-red-600"></p>
+          </div>
+        </form>
+        <br></br>
         <form
           onSubmit={updateInfomation}
           className="bg-darkG rounded-md p-8 max-w-[512px]"
@@ -380,7 +467,6 @@ export default function Dashboard() {
           </button>
         </form>
         <br></br>
-
         <HowToKey />
         <form
           onSubmit={submitHubspotKey}
