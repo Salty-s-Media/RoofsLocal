@@ -6,11 +6,6 @@ import { useEffect } from "react";
 export default function CancelPage() {
   const router = useRouter();
 
-  useEffect(() => {
-    const email = localStorage.getItem("email") as string;
-    deleteEmail(email);
-  }, []);
-
   // Ensure the user can sign up again if they choose to
   async function deleteEmail(email: string) {
     const del = await fetch(`/api/user/email/${email}`, {
@@ -29,6 +24,15 @@ export default function CancelPage() {
     const res = await del.json();
     console.log(res);
   }
+
+  useEffect(() => {
+    const email = localStorage.getItem("email") as string;
+    try {
+      deleteEmail(email);
+    } catch (error) {
+      console.error("Error deleting email", error);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen w-full justify-center flex flex-col">
