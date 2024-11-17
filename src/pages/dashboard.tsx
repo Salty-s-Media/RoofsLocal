@@ -262,23 +262,27 @@ export default function Dashboard() {
 
     const data = Object.fromEntries(formData.entries());
 
-    // user can see all zips they own in user.zipCodes
-    // format the zips
-    const newZips: string[] = [];
+    const toDelete: string[] = [];
 
-    newZips.push(
+    toDelete.push(
       ...(data.zipCodes as unknown as string)
         .split(",")
         .map((zip) => zip.trim())
     );
+    console.log("delete zips: ", toDelete);
 
-    // delete the ones that are in the form data.
+    // Filter out the ZIP codes from the array that are to be deleted.
+    const filteredZips = user.zipCodes.filter((zip) => !toDelete.includes(zip));
+
     const del = await fetch(`/api/user/email/${user.email}`, {
-      method: "DELETE",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ zipCodes: newZips, password: data.password }),
+      body: JSON.stringify({
+        zipCodes: filteredZips,
+        password: data.password, // required for the PUT request
+      }),
     });
 
     if (del.status === 200) {
@@ -334,7 +338,7 @@ export default function Dashboard() {
           onSubmit={updateZipCodes}
           className="bg-darkG rounded-md p-8 max-w-[512px]"
         >
-          <h1 className="mb-4 font-bold text-2xl">Update Zip Codes</h1>
+          <h1 className="mb-4 font-bold text-2xl">Add Zip Codes</h1>
           <p className="mb-4">
             In order for ZIP codes to be added properly, you must sumbit the zip
             codes as a comma seperated list.
@@ -372,7 +376,6 @@ export default function Dashboard() {
             <p id="error" className="text-md font-semibold text-red-600"></p>
           </div>
         </form>
-        <br></br>
         <br></br>
         <form
           onSubmit={deleteZipCodes}
