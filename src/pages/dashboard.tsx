@@ -290,6 +290,10 @@ export default function Dashboard() {
       setTimeout(() => {
         document.getElementById("success1")!.innerText = "";
       }, 4000);
+      setUser({
+        ...user,
+        zipCodes: filteredZips,
+      });
     } else {
       document.getElementById("error1")!.innerText =
         "Error deleting zip codes.";
