@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/router";
 
 interface FormStruct {
   firstName: string;
@@ -12,6 +13,7 @@ interface FormStruct {
 }
 
 export default function ContractorRegistration() {
+  const router = useRouter();
   function isPasswordValid(password: string) {
     const passwordInput = document.getElementById("password");
     const errorSpan = document.getElementById("password-error");
@@ -47,12 +49,65 @@ export default function ContractorRegistration() {
 
     const companyName = formData.get("company");
 
-    // const companyName = data.company as string;
-
-    console.log("Company Name: ", companyName); // Defined
-
     // Make available on /success for convenience.
     localStorage.setItem("email", data.email as string);
+
+    // error element
+    const msgElement = document.getElementById("msg");
+    // first, check that the email or phone number is not already registered by email lookup.
+    const resp = await fetch(`/api/user/email/${data.email}`, {
+      method: "GET",
+    });
+
+    const res = await resp.json();
+
+    if (resp.status === 200) {
+      const phone = data.phone as string;
+      const fmtPhone = phone && !phone.startsWith("+") ? `+1${phone}` : phone;
+
+      if (res.phone === fmtPhone) {
+        console.log("Contractor already exists: ", res);
+        if (msgElement) {
+          msgElement.style.color = "red";
+          msgElement.innerText =
+            "You are already registered. Redirecting to login...";
+        }
+        setTimeout(() => {
+          router.push("/login");
+        }, 3000);
+        return;
+      }
+    } else {
+      // the checks could be more robust, but this is a start that doesnt interrupt the registration process.
+      console.log("Not registered. Continuing registration process.");
+    }
+
+    // Check if user is already registered with a known email and password.
+    const response = await fetch("/api/user/login/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: data.email,
+        _password: data.password,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      if (msgElement) {
+        msgElement.style.color = "red";
+        msgElement.innerText =
+          "You are already registered. Redirecting to login...";
+      }
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
+    } else {
+      console.log("Not registered. Continuing registration process.");
+    }
 
     try {
       // Continue creating a session and starting the autobilling process - Then pass down the newly created stripeId to the contractor.
@@ -277,6 +332,7 @@ export default function ContractorRegistration() {
                 className="mt-1 mb-2 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
               />
             </div>
+            <p id="msg" className="mt-2 mb-2"></p>
             <button
               type="submit"
               className="w-full p-2 bg-gray-800 text-white rounded"

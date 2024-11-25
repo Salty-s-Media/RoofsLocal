@@ -28,6 +28,7 @@ export default async function handler(
           stripeId: contractor.stripeId,
           email: contractor.email,
           zipCodes: contractor.zipCodes,
+          phone: contractor.phone,
         });
       } else {
         res.status(404).json({ error: "Contractor not found" });
@@ -55,13 +56,17 @@ export default async function handler(
       ...(company !== undefined && { company }),
       ...(phone !== undefined && { phone }),
       ...(email !== undefined && { email }),
-      ...(zipCodes !== undefined && { zipCodes: zipCodes.map((zip: string) => zip.substring(0, 5)) }),
+      ...(zipCodes !== undefined && {
+        zipCodes: zipCodes.map((zip: string) => zip.substring(0, 5)),
+      }),
       ...(stripeId !== undefined && { stripeId }),
       ...(hubspotKey !== undefined && { hubspotKey }),
       ...(stripeSessionId !== undefined && { stripeSessionId }),
     };
 
-    console.log(`Updating ${decodedEmail} data: ${JSON.stringify(data, null, 2)}`);
+    console.log(
+      `Updating ${decodedEmail} data: ${JSON.stringify(data, null, 2)}`
+    );
 
     try {
       const contractor = await prisma.contractor.findUnique({
