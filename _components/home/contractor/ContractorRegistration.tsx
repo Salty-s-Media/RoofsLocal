@@ -62,10 +62,12 @@ export default function ContractorRegistration() {
     const res = await resp.json();
 
     if (resp.status === 200) {
+      const email = data.email as string;
+
       const phone = data.phone as string;
       const fmtPhone = phone && !phone.startsWith("+") ? `+1${phone}` : phone;
 
-      if (res.phone === fmtPhone) {
+      if (res.phone === fmtPhone || res.email === email) {
         console.log("Contractor already exists: ", res);
         if (msgElement) {
           msgElement.style.color = "red";
