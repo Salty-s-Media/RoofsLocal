@@ -14,6 +14,7 @@ interface FormStruct {
 
 export default function ContractorRegistration() {
   const router = useRouter();
+  const [loading, setLoading] = React.useState(false);
   function isPasswordValid(password: string) {
     const passwordInput = document.getElementById("password");
     const errorSpan = document.getElementById("password-error");
@@ -40,6 +41,8 @@ export default function ContractorRegistration() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    setLoading(true);
 
     const formData = new FormData(event.currentTarget);
 
@@ -190,159 +193,175 @@ export default function ContractorRegistration() {
   return (
     <div className="flex flex-col">
       <div className=" relative mx-auto">
-        <div className=" bg-white p-8 text-blk rounded-xl shadow-lg">
-          <h2 className="text-gray-800 text-center font-bold text-2xl mb-4">
-            Welcome!
-          </h2>
-          <form
-            className="bg-white space-y-3 min-w-[250px] max-h-[max-content]"
-            onSubmit={handleSubmit}
-          >
-            <div>
-              <label
-                htmlFor="firstName"
-                className="block text-sm font-medium text-gray-800"
-              >
-                First Name
-              </label>
-              <input
-                id="firstName"
-                name="firstName"
-                type="text"
-                placeholder="First Name"
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
+        {loading ? (
+          <>
+            <h2 className="text-white text-center font-bold text-2xl mb-4">
+              Loading...
+            </h2>
+            <div className="flex justify-center items-center h-auto mt-auto">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-solid border-green-600"></div>
             </div>
-            <div>
-              <label
-                htmlFor="lastName"
-                className="block text-sm font-medium text-gray-800"
-              >
-                Last Name
-              </label>
-              <input
-                id="lastName"
-                name="lastName"
-                type="text"
-                placeholder="Last Name"
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-800"
-              >
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Email"
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-800"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="abc123$"
-                minLength={7}
-                onChange={(string) => isPasswordValid(string.target.value)}
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-              <p
-                id="password-error"
-                className="text-sm text-center max-w-[15rem]"
-              ></p>
-            </div>
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Phone
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="(123)-123-1234"
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="zipCode"
-                className="block text-sm font-medium text-gray-800"
-              >
-                ZIP Code
-              </label>
-              <input
-                id="zipCode"
-                name="zipCode"
-                type="text"
-                maxLength={5}
-                placeholder="ZIP Code"
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="company"
-                className="block text-sm font-medium text-gray-800"
-              >
-                Company Name
-              </label>
-              <input
-                id="company"
-                name="company"
-                type="text"
-                placeholder="Company Name"
-                maxLength={32}
-                required
-                className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="hubspotKey"
-                className="block text-sm font-medium text-gray-800"
-              >
-                Hubspot Key (Optional)
-              </label>
-              <input
-                id="hubspotKey"
-                name="hubspotKey"
-                type="text"
-                placeholder="Hubspot API Key"
-                maxLength={64}
-                className="mt-1 mb-2 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
-              />
-            </div>
-            <p id="msg" className="mt-2 mb-2"></p>
-            <button
-              type="submit"
-              className="w-full p-2 bg-gray-800 text-white rounded"
+          </>
+        ) : (
+          <>
+            <div
+              id="register-form"
+              className="bg-white p-8 text-blk rounded-xl shadow-lg"
             >
-              Submit
-            </button>
-          </form>
-        </div>
+              <h2 className="text-gray-800 text-center font-bold text-2xl mb-4">
+                Welcome!
+              </h2>
+              <form
+                className="bg-white space-y-3 min-w-[250px] max-h-[max-content]"
+                onSubmit={handleSubmit}
+              >
+                <div>
+                  <label
+                    htmlFor="firstName"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    First Name
+                  </label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    placeholder="First Name"
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="lastName"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    placeholder="Last Name"
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Email"
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="abc123$"
+                    minLength={7}
+                    onChange={(string) => isPasswordValid(string.target.value)}
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                  <p
+                    id="password-error"
+                    className="text-sm text-center max-w-[15rem]"
+                  ></p>
+                </div>
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Phone
+                  </label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="(123)-123-1234"
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="zipCode"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    ZIP Code
+                  </label>
+                  <input
+                    id="zipCode"
+                    name="zipCode"
+                    type="text"
+                    maxLength={5}
+                    placeholder="ZIP Code"
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="company"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    Company Name
+                  </label>
+                  <input
+                    id="company"
+                    name="company"
+                    type="text"
+                    placeholder="Company Name"
+                    maxLength={32}
+                    required
+                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="hubspotKey"
+                    className="block text-sm font-medium text-gray-800"
+                  >
+                    Hubspot Key (Optional)
+                  </label>
+                  <input
+                    id="hubspotKey"
+                    name="hubspotKey"
+                    type="text"
+                    placeholder="Hubspot API Key"
+                    maxLength={64}
+                    className="mt-1 mb-2 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                  />
+                </div>
+                <p id="msg" className="mt-2 mb-2"></p>
+                <button
+                  type="submit"
+                  className="w-full p-2 bg-gray-800 text-white rounded"
+                >
+                  Submit
+                </button>
+              </form>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

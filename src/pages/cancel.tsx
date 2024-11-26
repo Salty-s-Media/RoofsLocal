@@ -20,9 +20,6 @@ export default function CancelPage() {
       console.error("HTTP error", del.status);
       return;
     }
-
-    const res = await del.json();
-    console.log(res);
   }
 
   useEffect(() => {
@@ -30,7 +27,7 @@ export default function CancelPage() {
     try {
       deleteEmail(email);
     } catch (error) {
-      console.error("Error deleting email", error);
+      console.log("Error deleting email", error);
     }
   }, []);
 
