@@ -5,7 +5,10 @@ import { parse } from 'cookie';
 
 const prisma = new PrismaClient();
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).end('Method Not Allowed');
@@ -13,9 +16,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const cookies = parse(req.headers.cookie || '');
+    console.log('Cookies:', cookies);
     const sessionId = cookies.sessionId;
+    console.log('Session ID:', sessionId);
 
     if (!sessionId) {
+      console.log('Session ID is null!');
       return res.status(401).json({ error: 'You are not logged in.' });
     }
 
@@ -23,7 +29,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let currentUser = null;
 
     for (const contractor of contractors) {
-      if (contractor.sessionExpiry && new Date(contractor.sessionExpiry) < new Date()) {
+      if (
+        contractor.sessionExpiry &&
+        new Date(contractor.sessionExpiry) < new Date()
+      ) {
+        console.log(
+          'Session expired:',
+          new Date(contractor.sessionExpiry),
+          new Date()
+        );
         continue;
       }
       const match = await bcrypt.compare(sessionId, contractor.sessionId);

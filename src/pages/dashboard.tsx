@@ -48,7 +48,7 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        router.push('/');
+        console.log('Not authed: ', response.status, response.statusText);
       }
 
       const result = await response.json();
