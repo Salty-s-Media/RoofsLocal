@@ -46,7 +46,10 @@ export default function Login() {
       if (response.ok) {
         // save for future use
         localStorage.setItem('email', email as string);
-        router.push('/dashboard');
+
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1500);
       } else {
         console.error('Login Error: ', result.error);
         displayErrorMessage();
