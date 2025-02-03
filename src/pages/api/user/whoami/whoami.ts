@@ -12,10 +12,10 @@ interface Contractor {
   phone: string;
   zipCodes: string[];
   boughtZipCodes: string[];
-  stripeId: string; // stripe customer id
+  stripeId: string;
   password: string;
   sessionId: string;
-  stripeSessionId?: string; // stripe checkout session id
+  stripeSessionId?: string;
   pricePerLead: number;
   sessionExpiry: Date;
   verificationToken: string;
@@ -49,7 +49,6 @@ export default async function handler(
     const sessionId = cookies.sessionId;
 
     if (!sessionId) {
-      console.log('Session ID is null!');
       return res.status(401).json({ error: 'You are not logged in.' });
     }
 
@@ -62,20 +61,15 @@ export default async function handler(
         new Date(contractor.sessionExpiry) < new Date()
     );
 
-    console.log(`Found ${expiredSessions.length} expired sessions`);
-
     const matches = await Promise.all(
       expiredSessions.map(async (contractor) => {
         console.log(
           `Checking session for contractor ID: ${contractor.id}, Session Expiry: ${contractor.sessionExpiry}`
         );
-
         const match = await bcrypt.compare(sessionId, contractor.sessionId);
-
         console.log(
           `Comparison result for contractor ID: ${contractor.id} -> Match: ${match}`
         );
-
         return { contractor, match };
       })
     );
@@ -83,7 +77,6 @@ export default async function handler(
     const matchedUser = matches.find(({ match }) => match)?.contractor;
 
     if (matchedUser) {
-      console.log(`User found: ${matchedUser.id}`);
       currentUser = matchedUser;
     } else {
       console.log('No matching session found.');
