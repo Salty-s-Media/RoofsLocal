@@ -3,6 +3,35 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { parse } from 'cookie';
 
+interface Contractor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  company: string;
+  email: string;
+  phone: string;
+  zipCodes: string[];
+  boughtZipCodes: string[];
+  stripeId: string; // stripe customer id
+  password: string;
+  sessionId: string;
+  stripeSessionId?: string; // stripe checkout session id
+  pricePerLead: number;
+  sessionExpiry: Date;
+  verificationToken: string;
+  resetToken?: string;
+  isVerified: boolean;
+  phoneVerified: boolean;
+  hubspotKey?: string;
+  ghlKey?: string;
+  ghlLocationId?: string;
+  ghlContactId?: string;
+  ghlPipelineId: string;
+  ghlPipelineStageId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const prisma = new PrismaClient();
 
 export default async function handler(
@@ -25,32 +54,39 @@ export default async function handler(
     }
 
     const contractors = await prisma.contractor.findMany();
-    let currentUser = null;
+    let currentUser: Partial<Contractor> = {};
 
-    for (const contractor of contractors) {
-      if (
+    const expiredSessions = contractors.filter(
+      (contractor) =>
         contractor.sessionExpiry &&
         new Date(contractor.sessionExpiry) < new Date()
-      ) {
-        console.log(
-          'Session expired:',
-          new Date(contractor.sessionExpiry),
-          new Date()
-        );
-        console.log('Cookies:', cookies);
-        console.log('Session ID:', sessionId);
-        console.log('Contractor Session ID:', contractor.sessionId);
-        continue;
-      }
-      const match = await bcrypt.compare(sessionId, contractor.sessionId);
-      if (match) {
-        currentUser = contractor;
-        break;
-      }
-    }
+    );
 
-    if (!currentUser) {
-      return res.status(404).json({ error: 'User not found.' });
+    console.log(`Found ${expiredSessions.length} expired sessions`);
+
+    const matches = await Promise.all(
+      expiredSessions.map(async (contractor) => {
+        console.log(
+          `Checking session for contractor ID: ${contractor.id}, Session Expiry: ${contractor.sessionExpiry}`
+        );
+
+        const match = await bcrypt.compare(sessionId, contractor.sessionId);
+
+        console.log(
+          `Comparison result for contractor ID: ${contractor.id} -> Match: ${match}`
+        );
+
+        return { contractor, match };
+      })
+    );
+
+    const matchedUser = matches.find(({ match }) => match)?.contractor;
+
+    if (matchedUser) {
+      console.log(`User found: ${matchedUser.id}`);
+      currentUser = matchedUser;
+    } else {
+      console.log('No matching session found.');
     }
 
     const { password, sessionId: storedSessionId, ...rest } = currentUser;
