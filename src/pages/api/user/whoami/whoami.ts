@@ -16,9 +16,8 @@ export default async function handler(
 
   try {
     const cookies = parse(req.headers.cookie || '');
-    console.log('Cookies:', cookies);
+
     const sessionId = cookies.sessionId;
-    console.log('Session ID:', sessionId);
 
     if (!sessionId) {
       console.log('Session ID is null!');
@@ -38,6 +37,9 @@ export default async function handler(
           new Date(contractor.sessionExpiry),
           new Date()
         );
+        console.log('Cookies:', cookies);
+        console.log('Session ID:', sessionId);
+        console.log('Contractor Session ID:', contractor.sessionId);
         continue;
       }
       const match = await bcrypt.compare(sessionId, contractor.sessionId);
