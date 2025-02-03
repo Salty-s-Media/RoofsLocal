@@ -6,7 +6,7 @@ import { FormEvent, useState } from 'react';
 export default function Login() {
   const router = useRouter();
   const [modal, setModal] = useState(false);
-  const [success, setSuccess] = useState(true);
+  const [success, setSuccess] = useState(false);
 
   function displayErrorMessage() {
     document.getElementById('msg')!.innerText =
