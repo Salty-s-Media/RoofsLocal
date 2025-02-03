@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
-import BillingManagement from "../../_components/home/contractor/update/UpdateContractor";
-import HowToKey from "../../_components/home/contractor/HowToKey";
+import { useRouter } from 'next/router';
+import { useEffect, useRef, useState } from 'react';
+import BillingManagement from '../../_components/home/contractor/update/UpdateContractor';
+import HowToKey from '../../_components/home/contractor/HowToKey';
 
 interface UserData {
   company: string;
@@ -43,12 +43,12 @@ export default function Dashboard() {
   // check login anytime we're on the dashboard page, especially after a refresh
   const checkLogin = async () => {
     try {
-      const response = await fetch("/api/user/whoami/whoami", {
-        method: "GET",
+      const response = await fetch('/api/user/whoami/whoami', {
+        method: 'GET',
       });
 
       if (!response.ok) {
-        router.push("/");
+        router.push('/');
       }
 
       const result = await response.json();
@@ -57,16 +57,15 @@ export default function Dashboard() {
 
       zips.current = user.zipCodes;
 
-      console.log("Current User Info: ", result);
+      console.log('Current User Info: ', result);
     } catch (error) {
-      console.error("Check Login Error: ", error);
+      console.error('Check Login Error: ', error);
     }
   };
 
   useEffect(() => {
     checkLogin();
     setLoaded(true);
-    zips.current = user.zipCodes;
   }, []);
 
   const updateInfomation = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -82,9 +81,9 @@ export default function Dashboard() {
 
     try {
       const response = await fetch(`/api/user/email/${user.email}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           firstName: data.first,
@@ -95,16 +94,16 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        router.push("/");
+        router.push('/');
       }
 
       const result = await response.json();
-      console.log("Updated User Info: ", result);
+      console.log('Updated User Info: ', result);
 
       // set the new user info...
       setUser(result);
     } catch (error) {
-      console.error("Update Information Error: ", error);
+      console.error('Update Information Error: ', error);
     }
   };
 
@@ -121,9 +120,9 @@ export default function Dashboard() {
 
     try {
       const response = await fetch(`/api/user/email/${user.email}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           hubspotKey: data.hubspotKey,
@@ -132,13 +131,13 @@ export default function Dashboard() {
       });
 
       if (!response.ok) {
-        router.push("/");
+        router.push('/');
       }
 
       const result = await response.json();
-      console.log("Updated Hubspot Key: ", result);
+      console.log('Updated Hubspot Key: ', result);
     } catch (error) {
-      console.error("Update Information Error: ", error);
+      console.error('Update Information Error: ', error);
     }
   };
 
@@ -158,11 +157,11 @@ export default function Dashboard() {
     // First, get the entire list of existing zips.
     try {
       const companyInfo = await fetch(`/api/user/email/${user.email}`, {
-        method: "GET",
+        method: 'GET',
       });
 
       if (!companyInfo.ok) {
-        console.error("POST error", companyInfo.status);
+        console.error('POST error', companyInfo.status);
         return;
       }
 
@@ -170,44 +169,44 @@ export default function Dashboard() {
 
       zipCodes.push(...info.zipCodes); // push all the existing zip codes into the array
     } catch (error) {
-      console.error("Update Information Error: ", error);
+      console.error('Update Information Error: ', error);
     }
 
     const newZips: string[] = [];
 
     newZips.push(
       ...(data.zipCodes as unknown as string)
-        .split(",")
+        .split(',')
         .map((zip) => zip.trim())
     );
-    console.log("new zips: ", newZips);
+    console.log('new zips: ', newZips);
 
     const pattern = /^\d{5}(-\d{4})?$/;
 
     newZips.forEach((zip: string, index: number) => {
       console.log(`zip: ${index}`, zip);
       if (zip === zipCodes.at(index)) {
-        document.getElementById("error")!.innerText =
-          "Error updating zip codes. Zip was a duplicate.";
+        document.getElementById('error')!.innerText =
+          'Error updating zip codes. Zip was a duplicate.';
         setTimeout(() => {
-          document.getElementById("error")!.innerText = "";
+          document.getElementById('error')!.innerText = '';
         }, 4000);
         setError(true);
         return;
       }
-      if (typeof zip !== "string") {
-        document.getElementById("error")!.innerText =
+      if (typeof zip !== 'string') {
+        document.getElementById('error')!.innerText =
           "Error updating zip codes. Zip wasn't correct length.";
         setTimeout(() => {
-          document.getElementById("error")!.innerText = "";
+          document.getElementById('error')!.innerText = '';
         }, 4000);
         setError(true);
         return;
       } else if (!zip.match(pattern)) {
-        document.getElementById("error")!.innerText =
-          "Error updating zip codes. Ensure the format is correct and try again.";
+        document.getElementById('error')!.innerText =
+          'Error updating zip codes. Ensure the format is correct and try again.';
         setTimeout(() => {
-          document.getElementById("error")!.innerText = "";
+          document.getElementById('error')!.innerText = '';
         }, 4000);
         setError(true);
         return;
@@ -220,13 +219,13 @@ export default function Dashboard() {
 
     // zipCodes.push(...(data.zipCodes as unknown as string).split(","));
 
-    console.log("updated zips and error: ", zipCodes, error);
+    console.log('updated zips and error: ', zipCodes, error);
     if (!error) {
       try {
         const response = await fetch(`/api/user/email/${user.email}`, {
-          method: "PUT",
+          method: 'PUT',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             zipCodes: zipCodes,
@@ -235,18 +234,18 @@ export default function Dashboard() {
         });
 
         if (response.status === 200) {
-          document.getElementById("success")!.innerText = "Zip Codes Updated!";
+          document.getElementById('success')!.innerText = 'Zip Codes Updated!';
           setTimeout(() => {
-            document.getElementById("success")!.innerText = "";
+            document.getElementById('success')!.innerText = '';
           }, 4000);
         }
 
         const result = await response.json();
-        console.log("Updated Zip Codes: ", result);
+        console.log('Updated Zip Codes: ', result);
 
         setUser(result); // Display updated user info
       } catch (error) {
-        console.error("Update Information Error: ", error);
+        console.error('Update Information Error: ', error);
       }
     }
   };
@@ -266,18 +265,18 @@ export default function Dashboard() {
 
     toDelete.push(
       ...(data.zipCodes as unknown as string)
-        .split(",")
+        .split(',')
         .map((zip) => zip.trim())
     );
-    console.log("delete zips: ", toDelete);
+    console.log('delete zips: ', toDelete);
 
     // Filter out the ZIP codes from the array that are to be deleted.
     const filteredZips = user.zipCodes.filter((zip) => !toDelete.includes(zip));
 
     const del = await fetch(`/api/user/email/${user.email}`, {
-      method: "PUT",
+      method: 'PUT',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         zipCodes: filteredZips,
@@ -286,19 +285,19 @@ export default function Dashboard() {
     });
 
     if (del.status === 200) {
-      document.getElementById("success1")!.innerText = "Zip Codes Deleted!";
+      document.getElementById('success1')!.innerText = 'Zip Codes Deleted!';
       setTimeout(() => {
-        document.getElementById("success1")!.innerText = "";
+        document.getElementById('success1')!.innerText = '';
       }, 4000);
       setUser({
         ...user,
         zipCodes: filteredZips,
       });
     } else {
-      document.getElementById("error1")!.innerText =
-        "Error deleting zip codes.";
+      document.getElementById('error1')!.innerText =
+        'Error deleting zip codes.';
       setTimeout(() => {
-        document.getElementById("error1")!.innerText = "";
+        document.getElementById('error1')!.innerText = '';
       }, 4000);
     }
   };
@@ -321,8 +320,8 @@ export default function Dashboard() {
                   <p>Zip Codes:</p>
                   <p>
                     {user.zipCodes
-                      ? user.zipCodes.join(", ")
-                      : "No zip codes available"}
+                      ? user.zipCodes.join(', ')
+                      : 'No zip codes available'}
                   </p>
                 </div>
                 <div>
@@ -354,7 +353,7 @@ export default function Dashboard() {
             type="text"
             name="zipCodes"
             className="mt-1 mb-4 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-            placeholder={"12345, 12346, 12347..."}
+            placeholder={'12345, 12346, 12347...'}
           />
 
           <label htmlFor="password" className="text-md font-bold text-white">
@@ -397,7 +396,7 @@ export default function Dashboard() {
             type="text"
             name="zipCodes"
             className="mt-1 mb-4 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-            placeholder={"12345, 12346, 12347..."}
+            placeholder={'12345, 12346, 12347...'}
           />
 
           <label htmlFor="password" className="text-md font-bold text-white">
