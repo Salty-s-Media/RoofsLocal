@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { Inter } from "next/font/google";
+import Link from 'next/link';
+import { Inter } from 'next/font/google';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ['latin'] });
 
 export default function Home() {
   return (
@@ -24,7 +24,7 @@ export default function Home() {
             </Link>
             <Link
               href="/login"
-              className="px-5 py-3 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
+              className="px-5 py-3 text-white text-sm font-semibold rounded-md bg-bgE hover:bg-bgD transition duration-200 ease-in-out"
             >
               Login
             </Link>
