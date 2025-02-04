@@ -304,35 +304,55 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen w-full justify-center flex flex-col my-6">
-      <div className="ml-12 mr-12">
+      <div className="ml-10 mr-10">
         {loaded && (
-          <div className="mt-[120px] bg-gray-600 p-8 rounded-md ">
-            <h1 className="text-5xl font-bold">Dashboard</h1>
-            <div>
-              <h2 className="text-2xl font-semibold mt-4 mb-4">
+          <div className="mt-[90px] md:mt-[114px] bg-gray-800 p-4 rounded-xl shadow-lg text-white mx-auto sm:p-6">
+            <h1 className="text-4xl sm:text-3xl font-extrabold text-gray-100">
+              Dashboard
+            </h1>
+            <div className="mt-6">
+              <h2 className="text-2xl sm:text-xl font-bold text-gray-300">
                 Welcome, {user.firstName} {user.lastName}
               </h2>
-              <div className="flex flex-row align-top gap-x-4">
-                <div>
-                  <p>Company: {user.company}</p>
-                  <p>Email: {user.email}</p>
-                  <p>Phone: {user.phone}</p>
-                  <p>Zip Codes:</p>
-                  <p>
-                    {user.zipCodes
-                      ? user.zipCodes.join(', ')
-                      : 'No zip codes available'}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-6">
+                <div className="bg-gray-700 p-2 rounded-lg shadow-md">
+                  <h3 className="text-lg font-bold text-gray-200 mb-3">
+                    User Details
+                  </h3>
+                  <p className="text-gray-300">
+                    <span className="font-bold">Company:</span> {user.company}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="font-bold">Email:</span> {user.email}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="font-bold">Phone:</span> {user.phone}
+                  </p>
+                  <p className="text-gray-300 font-bold mt-3">Zip Codes:</p>
+                  <p className="text-gray-300">
+                    {user.zipCodes?.slice(0, 10).join(', ')}
+                    {user.zipCodes?.length > 10 &&
+                      `, +${user.zipCodes.length - 10} more`}
                   </p>
                 </div>
-                <div>
-                  <h3>Account Information</h3>
-                  <p>Created: {user.createdAt}</p>
-                  <p>Updated: {user.updatedAt}</p>
-                  <p>Session Expiry: {user.sessionExpiry}</p>
+                <div className="bg-gray-700 p-2 rounded-lg shadow-md">
+                  <h3 className="text-lg font-bold text-gray-200 mb-3">
+                    Account Information
+                  </h3>
+                  <p className="text-gray-300">
+                    <span className="font-semibold">Created:</span>{' '}
+                    {new Date(user.createdAt).toLocaleString()}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="font-semibold">Updated:</span>{' '}
+                    {new Date(user.updatedAt).toLocaleString()}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="font-semibold">Session Expiry:</span>{' '}
+                    {new Date(user.sessionExpiry).toLocaleString()}
+                  </p>
                 </div>
               </div>
-
-              <br></br>
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 'use client';
 
+import { Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { FormEvent, useState } from 'react';
 
@@ -7,6 +8,7 @@ export default function Login() {
   const router = useRouter();
   const [modal, setModal] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [show, setShow] = useState(false);
 
   function displayErrorMessage() {
     document.getElementById('msg')!.innerText =
@@ -133,7 +135,7 @@ export default function Login() {
                 required
               />
             </div>
-            <div>
+            <div className="relative w-full">
               <label
                 htmlFor="_password"
                 className="block text-sm font-medium text-gray-700"
@@ -143,11 +145,18 @@ export default function Login() {
               <input
                 id="_password"
                 name="_password"
-                type="password"
+                type={show ? 'text' : 'password'}
                 placeholder="Password"
                 className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShow(!show)}
+                className="absolute inset-y-0 top-6 right-3 flex items-center text-gray-500"
+              >
+                {show ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           </div>
           <p id="msg" className="mt-2 mb-2"></p>

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
 interface BillProps {
   email: string;
@@ -8,52 +8,52 @@ interface BillProps {
 
 export default function BillingManagement({ email }: BillProps) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const [customerID, setCustomerId] = useState("");
+  const [customerID, setCustomerId] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
 
   async function handleUpdateBilling() {
-    console.log("Updating billing...");
+    console.log('Updating billing...');
     //Find the customer ID using email as unique identifier
     const req = await fetch(`/api/user/email/${email}`, {
-      method: "GET",
+      method: 'GET',
     });
 
     if (!req.ok) {
-      console.error("HTTP error", req.status);
+      console.error('HTTP error', req.status);
       return;
     }
 
     const res = await req.json();
 
-    console.log("Step 1", res);
+    console.log('Step 1', res);
 
     const customerId = res.stripeId;
     setCustomerId(customerId as string);
 
-    console.log("Step 2", customerID);
+    console.log('Step 2', customerID);
 
     // detach all old payment methods
-    const req2 = await fetch("/api/stripe/detach-payment-method", {
-      method: "POST",
+    const req2 = await fetch('/api/stripe/detach-payment-method', {
+      method: 'POST',
       body: JSON.stringify({
         customerId: customerId,
       }),
     });
 
     if (!req2.ok) {
-      console.error("HTTP error", req2.status);
+      console.error('HTTP error', req2.status);
       return;
     }
 
     const res2 = await req2.json();
 
-    console.log("step 3", res2);
+    console.log('step 3', res2);
 
     // Create session and process new payment method under the same customer account
-    const req3 = await fetch("/api/stripe/create-update-session", {
-      method: "POST",
+    const req3 = await fetch('/api/stripe/create-update-session', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ customerId: customerId }),
     });
@@ -66,21 +66,21 @@ export default function BillingManagement({ email }: BillProps) {
 
     const res3 = await req3.json();
 
-    console.log("step 4", res3);
+    console.log('step 4', res3);
 
     setIsUpdating(false);
   }
 
   async function handleCancelBilling() {
     // delete user from stripe
-    const req2 = await fetch("/api/stripe/delete-user", {
-      method: "DELETE",
+    const req2 = await fetch('/api/stripe/delete-user', {
+      method: 'DELETE',
       body: JSON.stringify({
         customerId: customerID,
       }),
     });
     if (!req2.ok) {
-      console.error("HTTP error", req2.status);
+      console.error('HTTP error', req2.status);
       return;
     }
     const res2 = await req2.json();
@@ -88,15 +88,15 @@ export default function BillingManagement({ email }: BillProps) {
 
     // Delete user from database
     const del = await fetch(`/api/user/email/${email}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ email: email }),
     });
 
     if (!del.ok) {
-      console.error("HTTP error", del.status);
+      console.error('HTTP error', del.status);
       return;
     }
 
@@ -104,7 +104,7 @@ export default function BillingManagement({ email }: BillProps) {
     console.log(res);
 
     if (!res.ok) {
-      console.error("HTTP error", res.status);
+      console.error('HTTP error', res.status);
       return;
     }
     setTimeout(() => {
@@ -113,7 +113,7 @@ export default function BillingManagement({ email }: BillProps) {
   }
 
   return (
-    <div>
+    <div className="space-y-4">
       {!isUpdating ? (
         <>
           {isCancelling ? null : (
