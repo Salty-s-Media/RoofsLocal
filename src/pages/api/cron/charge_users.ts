@@ -339,7 +339,7 @@ async function chargeContractor(sessionId: string, amount: number) {
 async function sendEmail(contractor: any, leads: any[]) {
   resend.emails.send({
     from: "Roofs Local <info@roofslocal.app>", // TODO: Change for production
-    to: ['richardcong635@gmail.com'],
+    to: [contractor.email],
     subject: "Leads",
     text: `Attached are ${contractor.email}'s leads: ${leads.length} for zip codes ${contractor.zipCodes}. Charged ${leads.length * contractor.pricePerLead / 100} USD.`,
     attachments: [{
