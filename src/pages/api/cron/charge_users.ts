@@ -66,7 +66,7 @@ async function getHubspotLeads(status: string) {
           value: status,
         }]
       }],
-      properties: ["id", "firstname", "lastname", "email", "phone", "street", "cityname", "zip"],
+      properties: ["id", "firstname", "lastname", "email", "phone", "address", "city", "zip"],
     })
   });
 
@@ -202,8 +202,8 @@ async function createGHLContact(contact: any, contractor: any) {
     lastName: contact.lastname,
     email: contact.email,
     phone: formattedPhoneNumber,
-    address1: contact.street,
-    city: contact.cityname,
+    address1: contact.address,
+    city: contact.city,
     postalCode: contact.zip,
     locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
   }
