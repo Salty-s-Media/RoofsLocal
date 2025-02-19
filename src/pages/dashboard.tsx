@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [loaded, setLoaded] = useState(false);
   const [user, setUser] = useState<UserData>({} as UserData);
   const [error, setError] = useState(false);
+  const [show, setShow] = useState(false);
   const zips = useRef([] as string[]);
 
   const router = useRouter();
@@ -329,11 +330,27 @@ export default function Dashboard() {
                     <span className="font-bold">Phone:</span> {user.phone}
                   </p>
                   <p className="text-gray-300 font-bold mt-3">Zip Codes:</p>
-                  <p className="text-gray-300">
-                    {user.zipCodes?.slice(0, 10).join(', ')}
-                    {user.zipCodes?.length > 10 &&
-                      `, +${user.zipCodes.length - 10} more`}
-                  </p>
+                  {show ? (
+                    <>
+                      <p className="text-gray-300">
+                        {user.zipCodes?.join(', ')}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-300">
+                        {user.zipCodes?.slice(0, 10).join(', ')}
+                        {user.zipCodes?.length > 10 &&
+                          `, +${user.zipCodes.length - 10} more`}
+                      </p>
+                    </>
+                  )}
+                  <button
+                    className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-4"
+                    onClick={() => setShow(!show)}
+                  >
+                    {show ? 'Show Less Zips' : 'Show All Zips'}
+                  </button>
                 </div>
                 <div className="bg-gray-700 p-2 rounded-lg shadow-md">
                   <h3 className="text-lg font-bold text-gray-200 mb-3">
