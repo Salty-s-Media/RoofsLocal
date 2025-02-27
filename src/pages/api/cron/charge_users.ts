@@ -1,8 +1,8 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from "@prisma/client";
-import { Resend } from "resend";
-import { Parser } from "json2csv";
-import Stripe from "stripe";
+import { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+import { Resend } from 'resend';
+import { Parser } from 'json2csv';
+import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -12,10 +12,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "GET") {
-    res.setHeader("Allow", ["GET"]);
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', ['GET']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
@@ -30,57 +32,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     await handleOpenLeads(contractorOpenLeadsMap);
 
-    const mergedLeadsMap = mergeLeadsMaps(contractorOpenLeadsMap, contractorUnpaidLeadsMap);
+    const mergedLeadsMap = mergeLeadsMaps(
+      contractorOpenLeadsMap,
+      contractorUnpaidLeadsMap
+    );
     await chargeForLeads(mergedLeadsMap);
 
-    res.status(200).json({ message: "Cron job executed successfully" });
+    res.status(200).json({ message: 'Cron job executed successfully' });
   } catch (error) {
-    console.error("Error executing cron job:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Error executing cron job:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-
 async function getOpenLeads() {
-  return getHubspotLeads("OPEN");
+  return getHubspotLeads('OPEN');
 }
-
 
 async function getUnpaidLeads() {
-  return getHubspotLeads("IN_PROGRESS");
+  return getHubspotLeads('IN_PROGRESS');
 }
 
-
 async function getHubspotLeads(status: string) {
-  const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-    },
-    body: JSON.stringify({
-      filterGroups: [{
-        filters: [{
-          propertyName: "hs_lead_status",
-          operator: "EQ",
-          value: status,
-        }]
-      }],
-      properties: ["id", "firstname", "lastname", "email", "phone", "address", "city", "zip"],
-    })
-  });
+  const hubspotResponse = await fetch(
+    'https://api.hubapi.com/crm/v3/objects/contacts/search',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+      },
+      body: JSON.stringify({
+        filterGroups: [
+          {
+            filters: [
+              {
+                propertyName: 'hs_lead_status',
+                operator: 'EQ',
+                value: status,
+              },
+            ],
+          },
+        ],
+        properties: [
+          'id',
+          'firstname',
+          'lastname',
+          'email',
+          'phone',
+          'address',
+          'city',
+          'zip',
+        ],
+      }),
+    }
+  );
 
   if (!hubspotResponse.ok) {
     const errorBody = await hubspotResponse.text();
-    throw new Error(`Failed to get ${status} leads: ${hubspotResponse.status} - ${errorBody}`);
+    throw new Error(
+      `Failed to get ${status} leads: ${hubspotResponse.status} - ${errorBody}`
+    );
   }
 
   const data = await hubspotResponse.json();
   return data.results.map((result: any) => ({
-    ...result.properties, id: result.id
+    ...result.properties,
+    id: result.id,
   }));
 }
-
 
 async function matchLeads(leads: any[]) {
   const contractorLeadsMap: { [key: string]: any[] } = {};
@@ -90,8 +110,8 @@ async function matchLeads(leads: any[]) {
       where: {
         zipCodes: {
           has: lead.zip.substring(0, 5),
-        }
-      }
+        },
+      },
     });
     if (contractor) {
       if (!contractorLeadsMap[contractor.id]) {
@@ -103,7 +123,6 @@ async function matchLeads(leads: any[]) {
 
   return contractorLeadsMap;
 }
-
 
 async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
   for (const contractorId in contractorLeadsMap) {
@@ -131,71 +150,83 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
   }
 }
 
-
 async function importHubspotContact(contact: any, contractor: any) {
   const contractorKey = contractor?.hubspotKey;
 
   delete contact.createdate;
   delete contact.lastmodifieddate;
-  contact.company = "Roofs Local";
+  contact.company = 'Roofs Local';
 
   const createData = {
     properties: contact,
   };
 
-  if (contractor?.hubspotKey != null && contractor?.hubspotKey != "") {
-    const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${contractorKey}`,
-      },
-      body: JSON.stringify(createData),
-    });
+  if (contractor?.hubspotKey != null && contractor?.hubspotKey != '') {
+    const hubspotResponse = await fetch(
+      'https://api.hubapi.com/crm/v3/objects/contacts',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${contractorKey}`,
+        },
+        body: JSON.stringify(createData),
+      }
+    );
 
     if (!hubspotResponse.ok) {
       const errorBody = await hubspotResponse.text();
-      console.warn(`Failed to create HubSpot contract: ${hubspotResponse.status} - ${errorBody}`);
+      console.warn(
+        `Failed to create HubSpot contract: ${hubspotResponse.status} - ${errorBody}`
+      );
       return;
     }
 
     const createContactResult = await hubspotResponse.json();
-    console.log("HubSpot contact created: ", createContactResult);
+    console.log('HubSpot contact created: ', createContactResult);
   }
 }
 
-
 async function updateHubspotCompany(contact: any, contractor: any) {
-  const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/batch/update", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-    },
-    body: JSON.stringify({
-      inputs: [{
-        id: contact.id,
-        properties: {
-          company: contractor?.company || "Unknown Company",
-        }
-      }]
-    })
-  });
+  const hubspotResponse = await fetch(
+    'https://api.hubapi.com/crm/v3/objects/contacts/batch/update',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+      },
+      body: JSON.stringify({
+        inputs: [
+          {
+            id: contact.id,
+            properties: {
+              company: contractor?.company || 'Unknown Company',
+            },
+          },
+        ],
+      }),
+    }
+  );
 
   if (!hubspotResponse.ok) {
     const errorBody = await hubspotResponse.text();
-    console.warn(`Failed to update HubSpot contact: ${hubspotResponse.status} - ${errorBody}`);
+    console.warn(
+      `Failed to update HubSpot contact: ${hubspotResponse.status} - ${errorBody}`
+    );
     return;
   }
 
   const updateContactResult = await hubspotResponse.json();
-  console.log("HubSpot contact updated: ", updateContactResult);
+  console.log('HubSpot contact updated: ', updateContactResult);
 }
-
 
 async function createGHLContact(contact: any, contractor: any) {
   const phoneNumber = contact.phone;
-  const formattedPhoneNumber = phoneNumber && !phoneNumber.startsWith('+') ? `+1${phoneNumber}` : phoneNumber;
+  const formattedPhoneNumber =
+    phoneNumber && !phoneNumber.startsWith('+')
+      ? `+1${phoneNumber}`
+      : phoneNumber;
 
   const ghlRequestBody = {
     firstName: contact.firstname,
@@ -205,60 +236,77 @@ async function createGHLContact(contact: any, contractor: any) {
     address1: contact.address,
     city: contact.city,
     postalCode: contact.zip,
-    locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
-  }
+    locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : '',
+  };
 
-  const ghlResponse = await fetch("https://services.leadconnectorhq.com/contacts/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${contractor?.ghlKey}`,
-      version: "2021-07-28"
-    },
-    body: JSON.stringify(ghlRequestBody),
-  });
+  const ghlResponse = await fetch(
+    'https://services.leadconnectorhq.com/contacts/',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${contractor?.ghlKey}`,
+        version: '2021-07-28',
+      },
+      body: JSON.stringify(ghlRequestBody),
+    }
+  );
 
   if (!ghlResponse.ok) {
     const errorBody = await ghlResponse.text();
-    console.warn(`Failed to create contact: ${ghlResponse.status} - ${errorBody}`);
+    console.warn(
+      `Failed to create contact: ${ghlResponse.status} - ${errorBody}`
+    );
     return null;
   }
 
-  console.log("GHL contact created: ", ghlResponse);
+  console.log('GHL contact created: ', ghlResponse);
   const ghlData = await ghlResponse.json();
   return ghlData;
 }
 
-
-async function createGHLOpporunity(contactId: string, contact: any, contractor: any) {
-  const ghlResponse = await fetch("https://services.leadconnectorhq.com/opportunities/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${contractor?.ghlKey}`,
-      version: "2021-07-28"
-    },
-    body: JSON.stringify({
-      pipelineId: contractor?.ghlPipelineId ? contractor.ghlPipelineId : "",
-      pipelineStageId: contractor?.ghlPipelineStageId ? contractor.ghlPipelineStageId : "",
-      locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : "",
-      name: `${contact.firstname} ${contact.lastname}`,
-      status: "open",
-      contactId: contactId
-    }),
-  });
+async function createGHLOpporunity(
+  contactId: string,
+  contact: any,
+  contractor: any
+) {
+  const ghlResponse = await fetch(
+    'https://services.leadconnectorhq.com/opportunities/',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${contractor?.ghlKey}`,
+        version: '2021-07-28',
+      },
+      body: JSON.stringify({
+        pipelineId: contractor?.ghlPipelineId ? contractor.ghlPipelineId : '',
+        pipelineStageId: contractor?.ghlPipelineStageId
+          ? contractor.ghlPipelineStageId
+          : '',
+        locationId: contractor?.ghlLocationId ? contractor.ghlLocationId : '',
+        name: `${contact.firstname} ${contact.lastname}`,
+        status: 'open',
+        contactId: contactId,
+      }),
+    }
+  );
 
   if (!ghlResponse.ok) {
     const errorBody = await ghlResponse.text();
-    console.warn(`Failed to create GHL opportunity: ${ghlResponse.status} - ${errorBody}`);
+    console.warn(
+      `Failed to create GHL opportunity: ${ghlResponse.status} - ${errorBody}`
+    );
     return;
   }
 
-  console.log("GHL create oportunity response: ", ghlResponse);
+  console.log('GHL create oportunity response: ', ghlResponse);
 }
 
-
-function mergeLeadsMaps(map1: { [key: string]: any[] }, map2: { [key: string]: any[] }) {
+function mergeLeadsMaps(
+  map1: { [key: string]: any[] },
+  map2: { [key: string]: any[] }
+) {
   const mergedMap: { [key: string]: any[] } = { ...map1 };
 
   for (const key in map2) {
@@ -272,7 +320,6 @@ function mergeLeadsMaps(map1: { [key: string]: any[] }, map2: { [key: string]: a
   return mergedMap;
 }
 
-
 async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
   for (const contractorId in contractorLeadsMap) {
     await delay(1000);
@@ -280,31 +327,38 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       const contractor = await prisma.contractor.findUnique({
         where: { id: contractorId },
       });
-  
+
       if (!contractor) {
         console.error(`Contractor with ID ${contractorId} not found`);
         continue;
       }
-  
+
       const leads = contractorLeadsMap[contractorId];
       const cost = leads.length * contractor.pricePerLead;
-  
+
       if (leads.length > 0) {
-        const payment = await chargeContractor(contractor.stripeSessionId, cost);
-        if (payment.status != "succeeded") {
+        const payment = await chargeContractor(
+          contractor.stripeSessionId,
+          cost
+        );
+        if (payment.status != 'succeeded') {
           console.error("Payment didn't process:", payment.status);
           continue;
-        } 
-        console.log(`Charged ${contractor.email} ${cost/100} USD for ${leads.length} leads`);
-        sendEmail(contractor, leads);
+        }
+        console.log(
+          `Charged ${contractor.email} ${cost / 100} USD for ${
+            leads.length
+          } leads`
+        );
+        // TOGGLE OFF
+        // sendEmail(contractor, leads);
         await updateHubspotLeads(leads);
       }
     } catch (error) {
-      console.error("Error charging contractor:", error);
+      console.error('Error charging contractor:', error);
     }
   }
 }
-
 
 async function chargeContractor(sessionId: string, amount: number) {
   // Retrieve the Session from the success URL, and charge customer;
@@ -322,64 +376,72 @@ async function chargeContractor(sessionId: string, amount: number) {
     customer: customerId as string,
     payment_method: paymentMethodId as string,
     amount: amount,
-    currency: "usd",
+    currency: 'usd',
     confirm: true,
     return_url: `${BASE_URL}/orders`,
     automatic_payment_methods: {
       enabled: true,
-      allow_redirects: "never",
+      allow_redirects: 'never',
     },
-    setup_future_usage: "off_session",
+    setup_future_usage: 'off_session',
   });
 
   return payment;
 }
 
-
 async function sendEmail(contractor: any, leads: any[]) {
   resend.emails.send({
-    from: "Roofs Local <info@roofslocal.app>", // TODO: Change for production
+    from: 'Roofs Local <info@roofslocal.app>', // TODO: Change for production
     to: [contractor.email],
-    subject: "Leads",
-    text: `Attached are ${contractor.email}'s leads: ${leads.length} for zip codes ${contractor.zipCodes}. Charged ${leads.length * contractor.pricePerLead / 100} USD.`,
-    attachments: [{
-      filename: "leads.csv",
-      content: Buffer.from(json2csvParser.parse(leads)).toString("base64"), // Attach leads as CSV
-    }]
+    subject: 'Leads',
+    text: `Attached are ${contractor.email}'s leads: ${
+      leads.length
+    } for zip codes ${contractor.zipCodes}. Charged ${
+      (leads.length * contractor.pricePerLead) / 100
+    } USD.`,
+    attachments: [
+      {
+        filename: 'leads.csv',
+        content: Buffer.from(json2csvParser.parse(leads)).toString('base64'), // Attach leads as CSV
+      },
+    ],
   });
 }
-
 
 async function updateHubspotLeads(leads: any[]) {
   const updateRequests = leads.map((lead) => ({
     id: lead.id,
-    properties: { "hs_lead_status": "CONNECTED" },
+    properties: { hs_lead_status: 'CONNECTED' },
   }));
 
   const requestBody = {
     inputs: updateRequests,
   };
 
-  const response = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/batch/update", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-    },
-    body: JSON.stringify(requestBody),
-  });
+  const response = await fetch(
+    'https://api.hubapi.com/crm/v3/objects/contacts/batch/update',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    }
+  );
 
   if (!response.ok) {
     const resp = await response.text();
-    throw new Error(`Failed HubSpot batch update: ${response.status} - ${resp}`);
+    throw new Error(
+      `Failed HubSpot batch update: ${response.status} - ${resp}`
+    );
   }
 
   const responseBody = await response.json();
-  console.log("Updated HubSpot leads:", responseBody);
+  console.log('Updated HubSpot leads:', responseBody);
   return responseBody;
 }
 
-
 function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
