@@ -41,10 +41,13 @@ export default async function handler(
 
     const sessionId = crypto.randomBytes(16).toString("hex");
     const hashedSessionId = await bcrypt.hash(sessionId, 10);
+    const sessionExpiry = new Date(Date.now() + 10 * 24 * 3600 * 1000);
 
     await prisma.contractor.update({
       where: { email },
-      data: { sessionId: hashedSessionId },
+      data: { sessionId: hashedSessionId,
+              sessionExpiry: sessionExpiry
+            },
     });
 
     const cookieOptions = {
