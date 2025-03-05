@@ -58,7 +58,7 @@ export default async function handler(
     const expiredSessions = contractors.filter(
       (contractor) =>
         contractor.sessionExpiry &&
-        new Date(contractor.sessionExpiry) < new Date()
+        new Date(contractor.sessionExpiry) > new Date()
     );
 
     const matches = await Promise.all(
