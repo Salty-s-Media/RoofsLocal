@@ -176,6 +176,7 @@ export default function Login() {
             </button>
           </div>
         </form>
+
         <button
           onClick={() => setModal(true)}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-gray-700 underline"
