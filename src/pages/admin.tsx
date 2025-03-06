@@ -1,6 +1,7 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { FormEvent, useState } from 'react';
+import { parse } from 'path';
+import { FormEvent, useState, useEffect } from 'react';
 
 interface Contractor {
   id: string;
@@ -10,36 +11,15 @@ interface Contractor {
   email: string;
   phone: string;
   zipCodes: string[];
-  boughtZipCodes: string[];
-  stripeId: string;
-  password: string;
-  sessionId: string;
-  stripeSessionId?: string;
   pricePerLead: number;
-  sessionExpiry: Date;
-  verificationToken: string;
-  resetToken?: string;
-  isVerified: boolean;
-  phoneVerified: boolean;
-  hubspotKey?: string;
-  ghlKey?: string;
-  ghlLocationId?: string;
-  ghlContactId?: string;
-  ghlPipelineId: string;
-  ghlPipelineStageId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Users {
-  users: string[];
 }
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false);
   const [show, setShow] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState<Partial<Contractor>>({});
+  const [users, setUsers] = useState<Partial<Contractor[]>>([]);
+  const [currentUser, setCurrentUser] = useState<Contractor | null>(null);
+  const [updated, setUpdated] = useState(false);
 
   const router = useRouter();
 
@@ -48,29 +28,20 @@ export default function Admin() {
     const formData = new FormData(event.currentTarget);
     const data = Object.fromEntries(formData.entries());
 
-    if (!data) return;
-
-    const akey = data.akey as string;
-    const rkey = data.rkey as string;
-
     try {
       const response = await fetch('/api/user/admin/check-admin', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          key: akey,
-          rkey: rkey,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: data.akey, rkey: data.rkey }),
       });
 
-      const result = await response.json();
-
-      if (response.status === 200) {
+      if (response.ok) {
         setAuthed(true);
+
+        setTimeout(() => {}, 1000);
+
+        getUsers();
       } else {
-        console.error('Not Authorized', result.error);
         router.push('/');
       }
     } catch (error) {
@@ -80,61 +51,53 @@ export default function Admin() {
 
   const getUsers = async () => {
     const res = await fetch('/api/user/admin/get-all');
-
     const data = await res.json();
-
-    if (res.ok) {
-      setUsers(data.users);
-    } else {
-      console.error('Error getting users: ', data.error);
-    }
+    if (res.ok) setUsers(data?.contractors);
   };
 
-  const changePrice = async (event: React.FormEvent<HTMLFormElement>) => {
+  const changePrice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!currentUser) return;
+
     const formData = new FormData(event.currentTarget);
-
-    event.currentTarget.reset();
-
-    if (!formData) return;
-
     const data = Object.fromEntries(formData.entries());
+
+    const price = parseFloat(data.price as string);
+    const userid = data.uid as string;
+
+    console.log('Price:', price, 'User ID:', userid);
 
     const res = await fetch('/api/user/admin/update-price', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: currentUser.id,
-        price: data.price,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userid, price }),
     });
 
-    const result = await res.json();
+    if (res.ok) {
+      const updatedUser = await res.json();
+      setCurrentUser(updatedUser);
+      setUsers(
+        users.map((user) => (user?.id === updatedUser.id ? updatedUser : user))
+      );
 
-    if (res.status === 200) {
-      setCurrentUser(result.user);
-    } else {
-      console.error('Error updating price: ', result.error);
+      setUpdated(true);
+
+      setTimeout(() => setUpdated(false), 4000);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col my-6 mx-6 mt-[125px]">
-      <h1 className="text-2xl font-bold text-left mb-2 text-white">
-        Welcome, Admin
-      </h1>
-
-      <div className="bg-white p-4 rounded-lg shadow-md w-96">
-        <h1 className="text-2xl font-bold text-center mb-2 text-blk">
-          Admin Login
-        </h1>
-        <p className="text-center text-gray-700 mb-4">
-          Please provide the admin login key.
-        </p>
-        <form onSubmit={loginAdmin}>
+    <div className="min-h-screen w-full flex flex-col my-6 mt-[125px]">
+      <h1 className="text-2xl font-bold text-left mb-2">Welcome, Admin</h1>
+      {!authed ? (
+        <form
+          className="max-w-md bg-white p-4 rounded-md"
+          onSubmit={loginAdmin}
+        >
+          <h1 className="text-2xl font-bold text-left mb-2 text-blk">
+            Admin Login
+          </h1>
           <div className="mb-4">
             <label
               htmlFor="akey"
@@ -147,9 +110,9 @@ export default function Admin() {
               name="akey"
               type="text"
               placeholder="Main Key"
+              maxLength={30}
               className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
             />
-
             <div className="relative w-full">
               <label
                 htmlFor="key"
@@ -161,6 +124,7 @@ export default function Admin() {
                 id="rkey"
                 name="rkey"
                 type={show ? 'text' : 'password'}
+                maxLength={30}
                 placeholder="Secondary Key"
                 className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
               />
@@ -182,42 +146,87 @@ export default function Admin() {
             </button>
           </div>
         </form>
-      </div>
-      {authed && (
+      ) : (
         <div>
-          <h1>Admin Dashboard</h1>
-          <div>
-            <h2>User List</h2>
-            <button onClick={getUsers}>Get Users</button>
-            <br></br>
+          <h2 className="text-xl font-bold mb-4">User List</h2>
 
-            <div>
-              <h2>Users</h2>
-            </div>
-          </div>
-          <form
-            onSubmit={changePrice}
-            className="bg-darkG rounded-md p-8 max-w-[512px]"
-          >
-            <h1 className="mb-4 font-bold text-2xl">
-              Update Price For User: {currentUser.id}
-            </h1>
-            <label htmlFor="price" className="text-md font-bold text-white">
-              Price Per Lead
-            </label>
-            <input
-              type="text"
-              name="price"
-              className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-            />
-            <input type="text" name="userId" value={currentUser.id} hidden />
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
-            >
-              Update Price Per Lead
-            </button>
-          </form>
+          <table className="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-acc2">
+                <th className="border p-2">Name</th>
+                <th className="border p-2">Company</th>
+                <th className="border p-2">Email</th>
+                <th className="border p-2">Phone</th>
+                <th className="border p-2">Zip Codes</th>
+                <th className="border p-2">Price Per Lead</th>
+                <th className="border p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user?.id} className="border">
+                  <td className="border p-2">
+                    {user?.firstName} {user?.lastName}
+                  </td>
+                  <td className="border p-2">{user?.company}</td>
+                  <td className="border p-2">{user?.email}</td>
+                  <td className="border p-2">{user?.phone}</td>
+
+                  <td className="text-gray-300">
+                    {user!.zipCodes?.slice(0, 10).join(', ')}
+                    {user!.zipCodes.length > 10 &&
+                      `, +${user!.zipCodes.length - 10} more`}
+                  </td>
+
+                  <td className="border p-2">{user?.pricePerLead}</td>
+                  <td className="border p-2">
+                    <button
+                      onClick={() => {
+                        setCurrentUser(user! as Contractor);
+                        console.log('Current User is', currentUser);
+                      }}
+                      className="bg-blue-500 text-white p-1 rounded"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {currentUser && (
+            <>
+              {updated ? (
+                <p>Price updated successfully</p>
+              ) : (
+                <form
+                  onSubmit={changePrice}
+                  className="mt-4 p-4 border rounded max-w-md"
+                  id="updatePrice"
+                >
+                  <h3 className="text-lg font-bold">
+                    Update Price for {currentUser.firstName}{' '}
+                    {currentUser.lastName}
+                  </h3>
+                  <input
+                    id="price"
+                    name="price"
+                    type="text"
+                    placeholder="New Price"
+                    maxLength={30}
+                    className="border p-2 w-full text-blk"
+                  />
+                  <input type="text" value={currentUser.id} name="uid" hidden />
+                  <button
+                    type="submit"
+                    className="mt-2 bg-blue-500 text-white p-2 rounded w-full"
+                  >
+                    Update Price
+                  </button>
+                </form>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 
+interface RequestBody {
+  userid: string;
+  price: number;
+}
+
 const prisma = new PrismaClient();
 
 export default async function handler(
@@ -13,11 +18,11 @@ export default async function handler(
   }
 
   try {
-    const { id, pricePerLead } = req.body;
+    const { userid, price }: RequestBody = req.body;
 
     const user = await prisma.contractor.update({
-      where: { id },
-      data: { pricePerLead },
+      where: { id: userid },
+      data: { pricePerLead: price },
     });
 
     return res.status(200).json({ user });
