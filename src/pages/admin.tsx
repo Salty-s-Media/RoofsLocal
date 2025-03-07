@@ -82,8 +82,6 @@ export default function Admin() {
       );
 
       setUpdated(true);
-
-      setTimeout(() => setUpdated(false), 4000);
     }
   };
 
@@ -149,7 +147,6 @@ export default function Admin() {
       ) : (
         <div>
           <h2 className="text-xl font-bold mb-4">User List</h2>
-
           <table className="w-full border-collapse border border-gray-300">
             <thead>
               <tr className="bg-acc2">
@@ -177,18 +174,19 @@ export default function Admin() {
                     {user!.zipCodes.length > 10 &&
                       `, +${user!.zipCodes.length - 10} more`}
                   </td>
-
+                  {/* TODO: THIS SHOULD AUTO UPDATE WITH THE RESULT OF update-price.ts */}
                   <td className="border p-2">{user?.pricePerLead}</td>
                   <td className="border p-2">
-                    <button
+                    {/* TODO: NEED TO DOUBLE SELECT THIS TO ACTUALLY SET THE USER CORRECTLY... */}
+                    <div
                       onClick={() => {
                         setCurrentUser(user! as Contractor);
                         console.log('Current User is', currentUser);
                       }}
-                      className="bg-blue-500 text-white p-1 rounded"
+                      className="bg-blue-500 text-white text-center p-1 rounded cursor-pointer"
                     >
                       Edit
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -201,7 +199,7 @@ export default function Admin() {
               ) : (
                 <form
                   onSubmit={changePrice}
-                  className="mt-4 p-4 border rounded max-w-md"
+                  className="mt-4 p-4 border-2 rounded max-w-md"
                   id="updatePrice"
                 >
                   <h3 className="text-lg font-bold">
@@ -214,9 +212,15 @@ export default function Admin() {
                     type="text"
                     placeholder="New Price"
                     maxLength={30}
-                    className="border p-2 w-full text-blk"
+                    className="border p-2 w-full text-blk rounded-md mt-2 mb-2"
                   />
-                  <input type="text" value={currentUser.id} name="uid" hidden />
+                  <input
+                    type="text"
+                    value={currentUser.id}
+                    name="uid"
+                    hidden
+                    readOnly
+                  />
                   <button
                     type="submit"
                     className="mt-2 bg-blue-500 text-white p-2 rounded w-full"
