@@ -14,6 +14,13 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
+model Admin {
+  key  String
+  rkey String
+
+  @@unique([key, rkey])
+}
+
 model Contractor {
   id                 String   @id @default(cuid())
   firstName          String
