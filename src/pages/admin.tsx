@@ -1,7 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { parse } from 'path';
-import { FormEvent, useState, useEffect } from 'react';
+import { FormEvent, useState } from 'react';
 
 interface Contractor {
   id: string;
