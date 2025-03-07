@@ -1,6 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 interface Contractor {
   id: string;
@@ -21,6 +21,10 @@ export default function Admin() {
   const [updated, setUpdated] = useState(false);
 
   const router = useRouter();
+
+  useEffect(() => {
+    console.log('Current User is', currentUser);
+  }, [currentUser]);
 
   const loginAdmin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -176,11 +180,11 @@ export default function Admin() {
                   {/* TODO: THIS SHOULD AUTO UPDATE WITH THE RESULT OF update-price.ts */}
                   <td className="border p-2">{user?.pricePerLead}</td>
                   <td className="border p-2">
-                    {/* TODO: NEED TO DOUBLE SELECT THIS TO ACTUALLY SET THE USER CORRECTLY... */}
                     <div
                       onClick={() => {
-                        setCurrentUser(user! as Contractor);
-                        console.log('Current User is', currentUser);
+                        if (user) {
+                          setCurrentUser(user as Contractor);
+                        }
                       }}
                       className="bg-blue-500 text-white text-center p-1 rounded cursor-pointer"
                     >
