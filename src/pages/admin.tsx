@@ -24,7 +24,7 @@ export default function Admin() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Current User is', currentUser);
+    console.debug('Current User is', currentUser);
   }, [currentUser]);
 
   const loginAdmin = async (event: FormEvent<HTMLFormElement>) => {
@@ -81,6 +81,8 @@ export default function Admin() {
     if (res.ok) {
       const updatedUser: Contractor = await res.json();
       setCurrentUser(updatedUser);
+
+      getUsers();
 
       setUpdated(true);
 
@@ -182,7 +184,6 @@ export default function Admin() {
                     {user!.zipCodes.length > 10 &&
                       `, +${user!.zipCodes.length - 10} more`}
                   </td>
-                  {/* TODO: THIS SHOULD AUTO UPDATE WITH THE RESULT OF update-price.ts */}
                   <td className="border p-2">{user?.pricePerLead}</td>
                   <td className="border p-2">
                     <div
