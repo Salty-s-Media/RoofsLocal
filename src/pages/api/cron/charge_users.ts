@@ -12,8 +12,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID as string;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN as string;
 
 export default async function handler(
   req: NextApiRequest,
