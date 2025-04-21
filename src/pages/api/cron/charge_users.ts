@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { Resend } from 'resend';
 import { Parser } from 'json2csv';
 import Stripe from 'stripe';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -11,6 +12,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 
 export default async function handler(
   req: NextApiRequest,
@@ -36,7 +39,10 @@ export default async function handler(
       contractorOpenLeadsMap,
       contractorUnpaidLeadsMap
     );
-    await chargeForLeads(mergedLeadsMap);
+
+    const validatedLeadsMap = await validateLeads(mergedLeadsMap);
+
+    await chargeForLeads(validatedLeadsMap);
 
     res.status(200).json({ message: 'Cron job executed successfully' });
   } catch (error) {
@@ -346,8 +352,7 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
           continue;
         }
         console.log(
-          `Charged ${contractor.email} ${cost / 100} USD for ${
-            leads.length
+          `Charged ${contractor.email} ${cost / 100} USD for ${leads.length
           } leads`
         );
         // TOGGLE OFF
@@ -394,11 +399,9 @@ async function sendEmail(contractor: any, leads: any[]) {
     from: 'Roofs Local <info@roofslocal.app>', // TODO: Change for production
     to: [contractor.email],
     subject: 'Leads',
-    text: `Attached are ${contractor.email}'s leads: ${
-      leads.length
-    } for zip codes ${contractor.zipCodes}. Charged ${
-      (leads.length * contractor.pricePerLead) / 100
-    } USD.`,
+    text: `Attached are ${contractor.email}'s leads: ${leads.length
+      } for zip codes ${contractor.zipCodes}. Charged ${(leads.length * contractor.pricePerLead) / 100
+      } USD.`,
     attachments: [
       {
         filename: 'leads.csv',
@@ -440,6 +443,70 @@ async function updateHubspotLeads(leads: any[]) {
   const responseBody = await response.json();
   console.log('Updated HubSpot leads:', responseBody);
   return responseBody;
+}
+
+async function validateLeads(contractorLeadsMap: { [key: string]: any[] }): Promise<{ [key: string]: any[] }> {
+  const validatedLeadsMap: { [key: string]: any[] } = {};
+
+  for (const contractorId in contractorLeadsMap) {
+    const leads = contractorLeadsMap[contractorId];
+    const validLeads = leads.filter(async (lead) => {
+      const phoneNumber = lead.phone
+      console.log(`Validating phone number: ${phoneNumber}`);
+
+      // has to meet +1 123 123 1234 EIC standard.
+      let phn: string = phoneNumber;
+
+      const formattedPhone = phn.startsWith('+')
+        ? phn.substring(2).replace(/[\(\)\-]/g, '')
+        : phn.replace(/[\(\)\-]/g, '');
+
+      const phoneNumberPattern =
+        /^(\+1\s)??(1\s)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$/;
+
+      if (phoneNumberPattern.test(formattedPhone))
+        try {
+          const response = await axios.get(
+            `https://lookups.twilio.com/v2/PhoneNumbers/${formattedPhone}?Fields=line_type_intelligence`,
+            {
+              auth: {
+                username: TWILIO_ACCOUNT_SID,
+                password: TWILIO_AUTH_TOKEN,
+              },
+            }
+          );
+
+          if (response.data) {
+            const result = response.data;
+
+            if (result.country_code === 'US') {
+              if (
+                result.line_type_intelligence &&
+                result.line_type_intelligence.carrier_name
+              ) {
+                console.log(
+                  `Customer has ${result.line_type_intelligence.carrier_name} as their carrier.`
+                );
+                console.log('Phone number is valid');
+                return true;
+              }
+            }
+          } else {
+            console.log('Could not validate phone number');
+            return false;
+          }
+        } catch (error) {
+          console.error('Lookup error:', error);
+          return false
+        }
+    });
+
+    if (validLeads.length > 0) {
+      validatedLeadsMap[contractorId] = validLeads;
+    }
+  }
+
+  return validatedLeadsMap;
 }
 
 function delay(ms: number) {
