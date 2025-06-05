@@ -60,49 +60,68 @@ async function getUnpaidLeads() {
 }
 
 async function getHubspotLeads(status: string) {
-  const hubspotResponse = await fetch(
-    'https://api.hubapi.com/crm/v3/objects/contacts/search',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-      },
-      body: JSON.stringify({
-        filterGroups: [
-          {
-            filters: [
-              {
-                propertyName: 'hs_lead_status',
-                operator: 'EQ',
-                value: status,
-              },
-            ],
-          },
-        ],
-        properties: [
-          'id',
-          'firstname',
-          'lastname',
-          'email',
-          'phone',
-          'address',
-          'city',
-          'zip',
-        ],
-      }),
+  let allResults: any[] = [];
+  let after: string | undefined = undefined;
+  const limit = 100;
+
+  do {
+    const requestBody: any = {
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'hs_lead_status',
+              operator: 'EQ',
+              value: status,
+            },
+          ],
+        },
+      ],
+      properties: [
+        'id',
+        'firstname',
+        'lastname',
+        'email',
+        'phone',
+        'address',
+        'city',
+        'zip',
+      ],
+      limit: limit,
+    };
+
+    if (after) {
+      requestBody.after = after;
     }
-  );
 
-  if (!hubspotResponse.ok) {
-    const errorBody = await hubspotResponse.text();
-    throw new Error(
-      `Failed to get ${status} leads: ${hubspotResponse.status} - ${errorBody}`
+    const hubspotResponse = await fetch(
+      'https://api.hubapi.com/crm/v3/objects/contacts/search',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+        },
+        body: JSON.stringify(requestBody),
+      }
     );
-  }
 
-  const data = await hubspotResponse.json();
-  return data.results.map((result: any) => ({
+    if (!hubspotResponse.ok) {
+      const errorBody = await hubspotResponse.text();
+      throw new Error(
+        `Failed to get ${status} leads (page with after=${after}): ${hubspotResponse.status} - ${errorBody}`
+      );
+    }
+
+    const data = await hubspotResponse.json();
+    if (data.results && data.results.length > 0) {
+      allResults = allResults.concat(data.results);
+    }
+
+    after = data.paging?.next?.after;
+  } while (after);
+
+  return allResults.map((result: any) => ({
     ...result.properties,
     id: result.id,
   }));
@@ -355,8 +374,6 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
           `Charged ${contractor.email} ${cost / 100} USD for ${leads.length
           } leads`
         );
-        // TOGGLE OFF
-        // sendEmail(contractor, leads);
         await updateHubspotLeads(leads);
       }
     } catch (error) {
