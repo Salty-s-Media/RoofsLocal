@@ -39,7 +39,11 @@ export default function Navbar() {
       <div className="flex container mx-auto px-6 py-3 md:flex-row md:justify-between md:items-center">
         <div className="flex justify-between items-center">
           <div>
-            <Link className="text-white text-xl font-bold md:text-2xl" href="/">
+            <Link
+              className="text-white text-xl font-bold md:text-2xl"
+              href="/"
+              aria-label="Roofs Local Logo"
+            >
               {mobile ? (
                 <svg
                   width="80"
