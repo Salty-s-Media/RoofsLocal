@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Search, X, Edit, Trash2, DollarSign, MapPin, Mail, Download, Filter } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useState } from 'react';
 
@@ -13,21 +13,39 @@ interface Contractor {
   pricePerLead: number;
 }
 
+type ModalType = 'price' | 'addZip' | 'deleteZip' | 'delete' | null;
+
 export default function Admin() {
-  const [actionActive, setActionActive] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [show, setShow] = useState(false);
-  const [users, setUsers] = useState<Partial<Contractor[]>>([]);
+  const [users, setUsers] = useState<Contractor[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<Contractor[]>([]);
   const [currentUser, setCurrentUser] = useState<Contractor | null>(null);
-  const [updated, setUpdated] = useState(false);
-
-  const [error, setError] = useState(false);
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
   const router = useRouter();
 
   useEffect(() => {
-    console.debug('Current User is', currentUser);
-  }, [currentUser]);
+    if (searchTerm) {
+      const filtered = users.filter(user => 
+        user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.zipCodes.some(zip => zip.includes(searchTerm))
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers(users);
+    }
+  }, [searchTerm, users]);
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
 
   const loginAdmin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -43,9 +61,6 @@ export default function Admin() {
 
       if (response.ok) {
         setAuthed(true);
-
-        setTimeout(() => {}, 1000);
-
         getUsers();
       } else {
         router.push('/');
@@ -58,484 +73,502 @@ export default function Admin() {
   const getUsers = async () => {
     const res = await fetch('/api/user/admin/get-all');
     const data = await res.json();
-    if (res.ok) setUsers(data?.contractors);
+    if (res.ok) setUsers(data?.contractors || []);
   };
 
   const changePrice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!currentUser) return;
 
     const formData = new FormData(event.currentTarget);
-    const data = Object.fromEntries(formData.entries());
+    const priceInDollars = parseFloat(formData.get('price') as string);
+    const priceInCents = Math.round(priceInDollars * 100); // Convert to cents
 
-    const price = parseFloat(data.price as string);
-    const userid = data.uid as string;
-
-    console.log('Price:', price, 'User ID:', userid);
-
-    const res = await fetch('/api/user/admin/update-price', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userid, price }),
-    });
-
-    if (res.ok) {
-      const updatedUser: Contractor = await res.json();
-      setCurrentUser(updatedUser);
-
-      getUsers();
-
-      setUpdated(true);
-
-      setTimeout(() => {
-        setUpdated(false);
-
-        setActionActive(false);
-      }, 3000);
-    }
-  };
-
-  const updateZipCodes = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-
-    if (!formData) return;
-
-    event.currentTarget.reset();
-
-    const data = Object.fromEntries(formData.entries());
-
-    const zipCodes: string[] = [];
-
-    // First, get the entire list of existing zips.
     try {
-      const companyInfo = await fetch(`/api/user/email/${currentUser?.email}`, {
-        method: 'GET',
+      const res = await fetch('/api/user/admin/update-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userid: currentUser.id, price: priceInCents }),
       });
 
-      if (!companyInfo.ok) {
-        console.error('POST error', companyInfo.status);
-        return;
-      }
-
-      const info = await companyInfo.json();
-
-      zipCodes.push(...info.zipCodes); // push all the existing zip codes into the array
-    } catch (error) {
-      console.error('Update Information Error: ', error);
-    }
-
-    const newZips: string[] = [];
-
-    newZips.push(
-      ...(data.zipCodes as unknown as string)
-        .split(',')
-        .map((zip) => zip.trim())
-    );
-    console.log('new zips: ', newZips);
-
-    const pattern = /^\d{5}(-\d{4})?$/;
-
-    newZips.forEach((zip: string, index: number) => {
-      console.log(`zip: ${index}`, zip);
-      if (zip === zipCodes.at(index)) {
-        document.getElementById('error')!.innerText =
-          'Error updating zip codes. Zip was a duplicate.';
-        setTimeout(() => {
-          document.getElementById('error')!.innerText = '';
-        }, 4000);
-        setError(true);
-        return;
-      }
-      if (typeof zip !== 'string') {
-        document.getElementById('error')!.innerText =
-          "Error updating zip codes. Zip wasn't correct length.";
-        setTimeout(() => {
-          document.getElementById('error')!.innerText = '';
-        }, 4000);
-        setError(true);
-        return;
-      } else if (!zip.match(pattern)) {
-        document.getElementById('error')!.innerText =
-          'Error updating zip codes. Ensure the format is correct and try again.';
-        setTimeout(() => {
-          document.getElementById('error')!.innerText = '';
-        }, 4000);
-        setError(true);
-        return;
+      if (res.ok) {
+        await getUsers();
+        setModalType(null);
+        showNotification('success', 'Price updated successfully');
       } else {
-        return zipCodes.push(zip);
+        showNotification('error', 'Failed to update price');
       }
-    });
-
-    // Then, update the zip codes with the new zip codes by pushing in the new ones from the form data.
-
-    // zipCodes.push(...(data.zipCodes as unknown as string).split(","));
-
-    console.log('updated zips and error: ', zipCodes, error);
-    if (!error) {
-      try {
-        const response = await fetch(`/api/user/email/${currentUser?.email}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            zipCodes: zipCodes,
-            password: data.password, // required for the PUT request
-          }),
-        });
-
-        if (response.status === 200) {
-          document.getElementById('success')!.innerText = 'Zip Codes Updated!';
-          setTimeout(() => {
-            document.getElementById('success')!.innerText = '';
-          }, 4000);
-        }
-
-        const result = await response.json();
-        console.log('Updated Zip Codes: ', result);
-
-        getUsers();
-
-        setUpdated(true);
-
-        setTimeout(() => {
-          setUpdated(false);
-
-          setActionActive(false);
-        }, 3000);
-      } catch (error) {
-        console.error('Update Information Error: ', error);
-      }
+    } catch (error) {
+      showNotification('error', 'An error occurred');
     }
   };
 
-  const deleteZipCodes = async (event: React.FormEvent<HTMLFormElement>) => {
+  const updateZipCodes = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!currentUser) return;
 
     const formData = new FormData(event.currentTarget);
+    const password = formData.get('password') as string;
+    const zipCodesInput = formData.get('zipCodes') as string;
 
-    if (!formData) return;
+    const newZips = zipCodesInput.split(',').map(zip => zip.trim()).filter(Boolean);
+    const pattern = /^\d{5}(-\d{4})?$/;
 
-    event.currentTarget.reset();
+    for (const zip of newZips) {
+      if (currentUser.zipCodes.includes(zip)) {
+        showNotification('error', `Duplicate zip code: ${zip}`);
+        return;
+      }
+      if (!pattern.test(zip)) {
+        showNotification('error', `Invalid zip code format: ${zip}`);
+        return;
+      }
+    }
 
-    const data = Object.fromEntries(formData.entries());
+    try {
+      const response = await fetch(`/api/user/email/${currentUser.email}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zipCodes: [...currentUser.zipCodes, ...newZips],
+          password,
+        }),
+      });
 
-    const toDelete: string[] = [];
-
-    toDelete.push(
-      ...(data.zipCodes as unknown as string)
-        .split(',')
-        .map((zip) => zip.trim())
-    );
-    console.log('delete zips: ', toDelete);
-
-    // Filter out the ZIP codes from the array that are to be deleted.
-    const filteredZips = currentUser?.zipCodes.filter(
-      (zip) => !toDelete.includes(zip)
-    );
-
-    const del = await fetch(`/api/user/email/${currentUser?.email}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        zipCodes: filteredZips,
-        password: data.password, // required for the PUT request
-      }),
-    });
-
-    if (del.status === 200) {
-      document.getElementById('success1')!.innerText = 'Zip Codes Deleted!';
-
-      getUsers();
-
-      setUpdated(true);
-
-      setTimeout(() => {
-        document.getElementById('success1')!.innerText = '';
-
-        setUpdated(false);
-
-        setActionActive(false);
-      }, 4000);
-    } else {
-      document.getElementById('error1')!.innerText =
-        'Error deleting zip codes.';
-      setTimeout(() => {
-        document.getElementById('error1')!.innerText = '';
-      }, 4000);
+      if (response.ok) {
+        await getUsers();
+        setModalType(null);
+        showNotification('success', 'Zip codes added successfully');
+      } else {
+        showNotification('error', 'Failed to add zip codes');
+      }
+    } catch (error) {
+      showNotification('error', 'An error occurred');
     }
   };
 
+  const deleteZipCodes = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const formData = new FormData(event.currentTarget);
+    const password = formData.get('password') as string;
+    const zipCodesInput = formData.get('zipCodes') as string;
+
+    const toDelete = zipCodesInput.split(',').map(zip => zip.trim()).filter(Boolean);
+    const filteredZips = currentUser.zipCodes.filter(zip => !toDelete.includes(zip));
+
+    try {
+      const response = await fetch(`/api/user/email/${currentUser.email}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zipCodes: filteredZips, password }),
+      });
+
+      if (response.ok) {
+        await getUsers();
+        setModalType(null);
+        showNotification('success', 'Zip codes deleted successfully');
+      } else {
+        showNotification('error', 'Failed to delete zip codes');
+      }
+    } catch (error) {
+      showNotification('error', 'An error occurred');
+    }
+  };
+
+  const exportToCSV = () => {
+    const headers = ['Name', 'Company', 'Email', 'Phone', 'Zip Codes', 'Price Per Lead'];
+    const rows = users.map(user => [
+      `${user.firstName} ${user.lastName}`,
+      user.company,
+      user.email,
+      user.phone,
+      user.zipCodes.join('; '),
+      (user.pricePerLead / 100).toFixed(2)
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contractors_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  const copyAllZipCodes = async () => {
+    // Collect all zip codes from all users
+    const allZipCodes = users.flatMap(user => user.zipCodes);
+    
+    // Get unique zip codes and sort them
+    const uniqueZipCodes = [...new Set(allZipCodes)].sort();
+    
+    // Join as comma-separated string
+    const zipCodesString = uniqueZipCodes.join(', ');
+    
+    try {
+      await navigator.clipboard.writeText(zipCodesString);
+      showNotification('success', `${uniqueZipCodes.length} zip codes copied to clipboard`);
+    } catch (error) {
+      showNotification('error', 'Failed to copy to clipboard');
+    }
+  };
+
+  const Modal = ({ children, onClose }: { children: React.ReactNode, onClose: () => void }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-900">
+            {modalType === 'price' && 'Update Price'}
+            {modalType === 'addZip' && 'Add Zip Codes'}
+            {modalType === 'deleteZip' && 'Delete Zip Codes'}
+            {modalType === 'delete' && 'Delete Contractor'}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen w-full flex flex-col mt-[125px] mb-4">
+    <div className="min-h-screen mt-[90px] bg-gray-50">
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
+          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white font-medium animate-slide-in`}>
+          {notification.message}
+        </div>
+      )}
+
       {!authed ? (
-        <div className="w-full items-center justify-center flex flex-col">
-          <form
-            className="min-w-[320px] bg-white p-4 rounded-md"
-            onSubmit={loginAdmin}
-          >
-            <h1 className="text-2xl font-bold text-left mb-2 text-blk">
-              Admin Login
-            </h1>
-            <div className="mb-4">
-              <label
-                htmlFor="akey"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Main Key
-              </label>
-              <input
-                id="akey"
-                name="akey"
-                type="text"
-                placeholder="Main Key"
-                maxLength={30}
-                className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
-              />
-              <div className="relative w-full">
-                <label
-                  htmlFor="key"
-                  className="block text-sm font-medium text-gray-700 mt-4"
-                >
-                  Secondary Key
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Portal</h1>
+              <p className="text-gray-600">Enter your credentials to continue</p>
+            </div>
+            
+            <form onSubmit={loginAdmin} className="space-y-4">
+              <div>
+                <label htmlFor="akey" className="block text-sm font-medium text-gray-700 mb-2">
+                  Main Key
                 </label>
                 <input
-                  id="rkey"
-                  name="rkey"
-                  type={show ? 'text' : 'password'}
+                  id="akey"
+                  name="akey"
+                  type="text"
+                  placeholder="Enter main key"
                   maxLength={30}
-                  placeholder="Secondary Key"
-                  className="text-blk mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 />
+              </div>
+              
+              <div>
+                <label htmlFor="rkey" className="block text-sm font-medium text-gray-700 mb-2">
+                  Secondary Key
+                </label>
+                <div className="relative">
+                  <input
+                    id="rkey"
+                    name="rkey"
+                    type={show ? 'text' : 'password'}
+                    maxLength={30}
+                    placeholder="Enter secondary key"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShow(!show)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {show ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 shadow-md hover:shadow-lg"
+              >
+                Sign In
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="container mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Contractor Management</h1>
+                <p className="text-gray-600 mt-1">{users.length} total contractors</p>
+              </div>
+              
+              <div className="flex flex-wrap gap-3">
                 <button
-                  type="button"
-                  onClick={() => setShow(!show)}
-                  className="absolute inset-y-0 top-6 right-3 flex items-center text-gray-500"
+                  onClick={copyAllZipCodes}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
                 >
-                  {show ? <EyeOff size={20} /> : <Eye size={20} />}
+                  <MapPin size={18} />
+                  Copy All Zip Codes
+                </button>
+                <button
+                  onClick={exportToCSV}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium"
+                >
+                  <Download size={18} />
+                  Export CSV
                 </button>
               </div>
             </div>
-            <div className="flex justify-between space-x-2">
-              <button
-                type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-acc2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-200 hover:bg-acc1 ease-in-out"
-              >
-                Submit
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        <div>
-          <h2 className="text-xl font-bold mb-4">User List</h2>
-          <table className="w-full border-collapse border-2 border-blk bg-white text-blk p-4 rounded-md">
-            <thead>
-              <tr className="bg-acc2">
-                <th className="border p-2">Name</th>
-                <th className="border p-2">Company</th>
-                <th className="border p-2">Email</th>
-                <th className="border p-2">Phone</th>
-                <th className="border p-2">Zip Codes</th>
-                <th className="border p-2">Price Per Lead</th>
-                <th className="border p-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user?.id} className="border">
-                  <td className="border p-2">
-                    {user?.firstName} {user?.lastName}
-                  </td>
-                  <td className="border p-2">{user?.company}</td>
-                  <td className="border p-2">{user?.email}</td>
-                  <td className="border p-2">{user?.phone}</td>
 
-                  <td className="text-blk border p-2">
-                    {user!.zipCodes?.slice(0, 10).join(', ')}
-                    {user!.zipCodes.length > 10 &&
-                      `, +${user!.zipCodes.length - 10} more`}
-                  </td>
-                  <td className="border p-2">{user?.pricePerLead}</td>
-                  <td className="border p-2">
-                    <div
-                      onClick={() => {
-                        setActionActive(!actionActive);
-                        if (user) {
-                          setCurrentUser(user as Contractor);
-                        }
-                      }}
-                      className="bg-blue-500 text-white text-center p-1 rounded cursor-pointer"
-                    >
-                      Edit
+            {/* Search Bar */}
+            <div className="mt-4 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search by name, company, email, or zip code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100 border-b">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Company</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contact</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Zip Codes</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Price/Lead</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">
+                          {user.firstName} {user.lastName}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">{user.company}</td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm">
+                          <div className="text-gray-900">{user.email}</div>
+                          <div className="text-gray-500">{user.phone}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {user.zipCodes.length} codes
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {user.zipCodes.slice(0, 3).join(', ')}
+                            {user.zipCodes.length > 3 && '...'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-semibold text-green-600">
+                          ${(user.pricePerLead / 100).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setCurrentUser(user);
+                              setModalType('price');
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Update Price"
+                          >
+                            <DollarSign size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCurrentUser(user);
+                              setModalType('addZip');
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                            title="Add Zip Codes"
+                          >
+                            <MapPin size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCurrentUser(user);
+                              setModalType('deleteZip');
+                            }}
+                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition"
+                            title="Delete Zip Codes"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No contractors found</p>
+              </div>
+            )}
+          </div>
+
+          {/* Modals */}
+          {modalType && currentUser && (
+            <Modal onClose={() => setModalType(null)}>
+              {modalType === 'price' && (
+                <form onSubmit={changePrice} className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Update price per lead for <span className="font-semibold text-gray-900">{currentUser.firstName} {currentUser.lastName}</span>
+                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      New Price Per Lead
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                      <input
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={(currentUser.pricePerLead / 100).toFixed(2)}
+                        className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                        required
+                      />
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {currentUser && actionActive ? (
-            <>
-              {updated ? (
-                <p className="m-4 bg-white text-blk p-4 rounded-md">
-                  Information Updated Successfully.
-                </p>
-              ) : (
-                <>
-                  <form
-                    onSubmit={changePrice}
-                    className="mt-4 p-4 border-2 rounded max-w-md"
-                    id="updatePrice"
-                  >
-                    <h3 className="text-lg font-bold">
-                      Update Price for {currentUser.firstName}{' '}
-                      {currentUser.lastName}
-                    </h3>
-                    <input
-                      id="price"
-                      name="price"
-                      type="text"
-                      placeholder="New Price"
-                      maxLength={30}
-                      className="border p-2 w-full text-blk rounded-md mt-2 mb-2"
-                      defaultValue={currentUser.pricePerLead}
-                    />
-                    <input
-                      type="text"
-                      value={currentUser.id}
-                      name="uid"
-                      hidden
-                      readOnly
-                    />
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setModalType(null)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                    >
+                      Cancel
+                    </button>
                     <button
                       type="submit"
-                      className="mt-2 bg-blue-500 text-white p-2 rounded w-full"
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
                     >
                       Update Price
                     </button>
-                  </form>
-                  <br></br>
-                  <form
-                    onSubmit={updateZipCodes}
-                    className="bg-darkG rounded-md p-8 max-w-[512px]"
-                  >
-                    <h1 className="mb-4 font-bold text-2xl">Add Zip Codes</h1>
-                    <p className="mb-4">
-                      In order for ZIP codes to be added properly, you must
-                      sumbit the zip codes as a comma seperated list. Please
-                      provide the appropriate contractors password.
-                    </p>
-                    <label
-                      htmlFor="zipCodes"
-                      className="text-md font-bold text-white"
-                    >
-                      Zip Codes
-                    </label>
-                    <input
-                      type="text"
-                      name="zipCodes"
-                      className="mt-1 mb-4 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-                      placeholder={'12345, 12346, 12347...'}
-                    />
-
-                    <label
-                      htmlFor="password"
-                      className="text-md font-bold text-white"
-                    >
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      name="password"
-                      required
-                      className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-                    />
-                    <button
-                      className="bg-blue-500 hover:bg-blue-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
-                      type="submit"
-                    >
-                      Update Zip Codes
-                    </button>
-                    <div className="mt-4 mb-4">
-                      <p
-                        id="success"
-                        className="text-md font-semibold text-green-600"
-                      ></p>
-                      <p
-                        id="error"
-                        className="text-md font-semibold text-red-600"
-                      ></p>
-                    </div>
-                  </form>
-                  <br></br>
-                  <form
-                    onSubmit={deleteZipCodes}
-                    className="bg-darkG rounded-md p-8 max-w-[512px]"
-                  >
-                    <h1 className="mb-4 font-bold text-2xl">
-                      Delete Zip Codes
-                    </h1>
-                    <p className="mb-4">
-                      In order for ZIP codes to be deleted properly, you must
-                      sumbit the zip codes as a comma seperated list.
-                    </p>
-                    <label
-                      htmlFor="zipCodes"
-                      className="text-md font-bold text-white"
-                    >
-                      Zip Codes
-                    </label>
-                    <input
-                      type="text"
-                      name="zipCodes"
-                      className="mt-1 mb-4 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-                      placeholder={'12345, 12346, 12347...'}
-                    />
-
-                    <label
-                      htmlFor="password"
-                      className="text-md font-bold text-white"
-                    >
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      name="password"
-                      required
-                      className="mt-1 w-full border-blue-300 shadow-sm sm:text-sm rounded-md text-blk"
-                    />
-                    <button
-                      className="bg-red-500 hover:bg-red-700 text-white text-center font-bold py-2 px-4 rounded mt-8"
-                      type="submit"
-                    >
-                      Delete Zip Codes
-                    </button>
-                    <div className="mt-4 mb-4">
-                      <p
-                        id="success1"
-                        className="text-md font-semibold text-green-600"
-                      ></p>
-                      <p
-                        id="error1"
-                        className="text-md font-semibold text-red-600"
-                      ></p>
-                    </div>
-                  </form>
-                  <br></br>
-                </>
+                  </div>
+                </form>
               )}
-            </>
-          ) : (
-            <p className="m-4 bg-white text-blk p-4 rounded-md">
-              Action Inactive. Select &apos;Edit&apos; to make changes to a
-              contractor.
-            </p>
+
+              {modalType === 'addZip' && (
+                <form onSubmit={updateZipCodes} className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Current zip codes: <span className="font-semibold text-gray-900">{currentUser.zipCodes.length}</span>
+                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Zip Codes (comma-separated)
+                    </label>
+                    <input
+                      name="zipCodes"
+                      type="text"
+                      placeholder="12345, 12346, 12347"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Format: 5-digit codes separated by commas</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contractor Password
+                    </label>
+                    <input
+                      name="password"
+                      type="password"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setModalType(null)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium"
+                    >
+                      Add Zip Codes
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {modalType === 'deleteZip' && (
+                <form onSubmit={deleteZipCodes} className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Current zip codes: <span className="font-mono text-xs text-gray-900">{currentUser.zipCodes.join(', ')}</span>
+                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Zip Codes to Delete (comma-separated)
+                    </label>
+                    <input
+                      name="zipCodes"
+                      type="text"
+                      placeholder="12345, 12346"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 placeholder-gray-400"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contractor Password
+                    </label>
+                    <input
+                      name="password"
+                      type="password"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setModalType(null)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium"
+                    >
+                      Delete Zip Codes
+                    </button>
+                  </div>
+                </form>
+              )}
+            </Modal>
           )}
         </div>
       )}
