@@ -246,7 +246,7 @@ export default function Admin() {
       )}
 
       {!authed ? (
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen mt-[-70px] flex items-center justify-center px-4">
           <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Portal</h1>
@@ -279,7 +279,7 @@ export default function Admin() {
                     type={show ? 'text' : 'password'}
                     maxLength={30}
                     placeholder="Enter secondary key"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="w-full px-4 py-3 border text-blk border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   />
                   <button
                     type="button"
