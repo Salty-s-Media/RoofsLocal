@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Search, X, Edit, Trash2, DollarSign, MapPin, Mail, Download, Filter } from 'lucide-react';
+import { Eye, EyeOff, Search, X, Trash2, DollarSign, ListPlus, Download, ListX } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useState } from 'react';
 
@@ -177,6 +177,30 @@ export default function Admin() {
     }
   };
 
+  const deleteContractor = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    try {
+      const res = await fetch('/api/user/admin/del-con', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: currentUser.id }),
+      });
+
+      if (res.ok) {
+        await getUsers();
+        setModalType(null);
+        setCurrentUser(null);
+        showNotification('success', 'Contractor deleted successfully');
+      } else {
+        showNotification('error', 'Failed to delete contractor');
+      }
+    } catch (error) {
+      showNotification('error', 'An error occurred');
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ['Name', 'Company', 'Email', 'Phone', 'Zip Codes', 'Price Per Lead'];
     const rows = users.map(user => [
@@ -315,7 +339,7 @@ export default function Admin() {
                   onClick={copyAllZipCodes}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
                 >
-                  <MapPin size={18} />
+                  <ListPlus size={18} />
                   Copy All Zip Codes
                 </button>
                 <button
@@ -336,7 +360,7 @@ export default function Admin() {
                 placeholder="Search by name, company, email, or zip code..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full text-blk pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -406,7 +430,7 @@ export default function Admin() {
                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
                             title="Add Zip Codes"
                           >
-                            <MapPin size={18} />
+                            <ListPlus size={18} />
                           </button>
                           <button
                             onClick={() => {
@@ -415,6 +439,16 @@ export default function Admin() {
                             }}
                             className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition"
                             title="Delete Zip Codes"
+                          >
+                            <ListX size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCurrentUser(user);
+                              setModalType('delete');
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete Contractor"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -564,6 +598,33 @@ export default function Admin() {
                       className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium"
                     >
                       Delete Zip Codes
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {modalType === 'delete' && (
+                <form onSubmit={deleteContractor} className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Are you sure you want to permanently delete{' '}
+                    <span className="font-semibold text-gray-900">
+                      {currentUser.firstName} {currentUser.lastName}
+                    </span>
+                    ? This action cannot be undone.
+                  </p>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => setModalType(null)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium"
+                    >
+                      Delete Contractor
                     </button>
                   </div>
                 </form>
