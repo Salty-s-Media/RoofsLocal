@@ -12,8 +12,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 const BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL;
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID as string;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN as string;
+
+// Only process leads created within the last 7 days
+const MAX_LEAD_AGE_DAYS = 7;
 
 export default async function handler(
   req: NextApiRequest,
@@ -33,16 +34,14 @@ export default async function handler(
     const contractorOpenLeadsMap = await matchLeads(openLeads);
     const contractorUnpaidLeadsMap = await matchLeads(unpaidLeads);
 
-    await handleOpenLeads(contractorOpenLeadsMap);
+    const successfulOpenLeadsMap = await handleOpenLeads(contractorOpenLeadsMap);
 
     const mergedLeadsMap = mergeLeadsMaps(
-      contractorOpenLeadsMap,
+      successfulOpenLeadsMap,
       contractorUnpaidLeadsMap
     );
 
-    const validatedLeadsMap = await validateLeads(mergedLeadsMap);
-
-    await chargeForLeads(validatedLeadsMap);
+    await chargeForLeads(mergedLeadsMap);
 
     res.status(200).json({ message: 'Cron job executed successfully' });
   } catch (error) {
@@ -64,6 +63,11 @@ async function getHubspotLeads(status: string) {
   let after: string | undefined = undefined;
   const limit = 100;
 
+  // Only fetch leads created within the allowed window
+  const cutoffTimestamp = String(
+    Date.now() - MAX_LEAD_AGE_DAYS * 24 * 60 * 60 * 1000
+  );
+
   do {
     const requestBody: any = {
       filterGroups: [
@@ -73,6 +77,11 @@ async function getHubspotLeads(status: string) {
               propertyName: 'hs_lead_status',
               operator: 'EQ',
               value: status,
+            },
+            {
+              propertyName: 'createdate',
+              operator: 'GTE',
+              value: cutoffTimestamp,
             },
           ],
         },
@@ -150,6 +159,11 @@ async function matchLeads(leads: any[]) {
 }
 
 async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
+  // Returns a new map containing only leads that were successfully processed
+  // (i.e. GHL contact + opportunity created). Failed leads are left untouched
+  // in the original map but excluded from billing and CONNECTED status.
+  const successfulLeadsMap: { [key: string]: any[] } = {};
+
   for (const contractorId in contractorLeadsMap) {
     const contractor = await prisma.contractor.findUnique({
       where: { id: contractorId },
@@ -161,6 +175,7 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
     }
 
     const leads = contractorLeadsMap[contractorId];
+
     for (const lead of leads) {
       await delay(1000);
       await importHubspotContact(lead, contractor);
@@ -168,11 +183,17 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
       const ghlData = await createGHLContact(lead, contractor);
       if (ghlData) {
         await createGHLOpporunity(ghlData.contact.id, lead, contractor);
+        if (!successfulLeadsMap[contractorId]) {
+          successfulLeadsMap[contractorId] = [];
+        }
+        successfulLeadsMap[contractorId].push(lead);
       } else {
-        leads.splice(leads.indexOf(lead), 1);
+        console.warn(`GHL contact creation failed for lead ${lead.id}, excluding from billing`);
       }
     }
   }
+
+  return successfulLeadsMap;
 }
 
 async function importHubspotContact(contact: any, contractor: any) {
@@ -359,22 +380,48 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       }
 
       const leads = contractorLeadsMap[contractorId];
-      const cost = leads.length * contractor.pricePerLead;
 
-      if (leads.length > 0) {
+      if (leads.length === 0) continue;
+
+      // --- Duplicate billing protection ---
+      // Mark leads as CONNECTED *before* charging so a concurrent run won't pick them up.
+      // If the charge fails we revert them back to IN_PROGRESS.
+      await updateHubspotLeads(leads, 'CONNECTED');
+
+      const cost = leads.length * contractor.pricePerLead;
+      const leadIds = leads.map((l: any) => l.id);
+
+      try {
         const payment = await chargeContractor(
           contractor.stripeSessionId,
-          cost
+          cost,
+          {
+            contractorId: contractor.id,
+            contractorEmail: contractor.email,
+            leadCount: String(leads.length),
+            pricePerLead: String(contractor.pricePerLead),
+            // Stripe metadata values are capped at 500 chars; truncate if needed
+            leadIds: leadIds.join(',').substring(0, 500),
+            billedAt: new Date().toISOString(),
+          },
+          `${leads.length} leads for ${contractor.email} at $${
+            contractor.pricePerLead / 100
+          }/lead`
         );
-        if (payment.status != 'succeeded') {
+
+        if (payment.status !== 'succeeded') {
           console.error("Payment didn't process:", payment.status);
+          // Revert leads so they get picked up on the next run
+          await updateHubspotLeads(leads, 'IN_PROGRESS');
           continue;
         }
+
         console.log(
-          `Charged ${contractor.email} ${cost / 100} USD for ${leads.length
-          } leads`
+          `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
         );
-        await updateHubspotLeads(leads);
+      } catch (chargeError) {
+        console.error('Charge failed, reverting leads to IN_PROGRESS:', chargeError);
+        await updateHubspotLeads(leads, 'IN_PROGRESS');
       }
     } catch (error) {
       console.error('Error charging contractor:', error);
@@ -382,13 +429,16 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
   }
 }
 
-async function chargeContractor(sessionId: string, amount: number) {
-  // Retrieve the Session from the success URL, and charge customer;
+async function chargeContractor(
+  sessionId: string,
+  amount: number,
+  metadata: Record<string, string>,
+  description: string
+) {
   const currentSession = await stripe.checkout.sessions.retrieve(sessionId);
   const setupIntentId = currentSession.setup_intent;
   const customerId = currentSession.customer;
 
-  // Retrieve the setup intent to get the payment method ID
   const setupIntent = await stripe.setupIntents.retrieve(
     setupIntentId as string
   );
@@ -406,6 +456,8 @@ async function chargeContractor(sessionId: string, amount: number) {
       allow_redirects: 'never',
     },
     setup_future_usage: 'off_session',
+    metadata,
+    description,
   });
 
   return payment;
@@ -413,25 +465,27 @@ async function chargeContractor(sessionId: string, amount: number) {
 
 async function sendEmail(contractor: any, leads: any[]) {
   resend.emails.send({
-    from: 'Roofs Local <info@roofslocal.app>', // TODO: Change for production
+    from: 'Roofs Local <info@roofslocal.app>',
     to: [contractor.email],
     subject: 'Leads',
-    text: `Attached are ${contractor.email}'s leads: ${leads.length
-      } for zip codes ${contractor.zipCodes}. Charged ${(leads.length * contractor.pricePerLead) / 100
-      } USD.`,
+    text: `Attached are ${contractor.email}'s leads: ${
+      leads.length
+    } for zip codes ${contractor.zipCodes}. Charged ${
+      (leads.length * contractor.pricePerLead) / 100
+    } USD.`,
     attachments: [
       {
         filename: 'leads.csv',
-        content: Buffer.from(json2csvParser.parse(leads)).toString('base64'), // Attach leads as CSV
+        content: Buffer.from(json2csvParser.parse(leads)).toString('base64'),
       },
     ],
   });
 }
 
-async function updateHubspotLeads(leads: any[]) {
+async function updateHubspotLeads(leads: any[], status: string = 'CONNECTED') {
   const updateRequests = leads.map((lead) => ({
     id: lead.id,
-    properties: { hs_lead_status: 'CONNECTED' },
+    properties: { hs_lead_status: status },
   }));
 
   const requestBody = {
@@ -458,72 +512,8 @@ async function updateHubspotLeads(leads: any[]) {
   }
 
   const responseBody = await response.json();
-  console.log('Updated HubSpot leads:', responseBody);
+  console.log(`Updated HubSpot leads to ${status}:`, responseBody);
   return responseBody;
-}
-
-async function validateLeads(contractorLeadsMap: { [key: string]: any[] }): Promise<{ [key: string]: any[] }> {
-  const validatedLeadsMap: { [key: string]: any[] } = {};
-
-  for (const contractorId in contractorLeadsMap) {
-    const leads = contractorLeadsMap[contractorId];
-    const validLeads = leads.filter(async (lead) => {
-      const phoneNumber = lead.phone
-      console.log(`Validating phone number: ${phoneNumber}`);
-
-      // has to meet +1 123 123 1234 EIC standard.
-      let phn: string = phoneNumber;
-
-      const formattedPhone = phn.startsWith('+')
-        ? phn.substring(2).replace(/[\(\)\-]/g, '')
-        : phn.replace(/[\(\)\-]/g, '');
-
-      const phoneNumberPattern =
-        /^(\+1\s)??(1\s)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})$/;
-
-      if (phoneNumberPattern.test(formattedPhone))
-        try {
-          const response = await axios.get(
-            `https://lookups.twilio.com/v2/PhoneNumbers/${formattedPhone}?Fields=line_type_intelligence`,
-            {
-              auth: {
-                username: TWILIO_ACCOUNT_SID,
-                password: TWILIO_AUTH_TOKEN,
-              },
-            }
-          );
-
-          if (response.data) {
-            const result = response.data;
-
-            if (result.country_code === 'US') {
-              if (
-                result.line_type_intelligence &&
-                result.line_type_intelligence.carrier_name
-              ) {
-                console.log(
-                  `Customer has ${result.line_type_intelligence.carrier_name} as their carrier.`
-                );
-                console.log('Phone number is valid');
-                return true;
-              }
-            }
-          } else {
-            console.log('Could not validate phone number');
-            return false;
-          }
-        } catch (error) {
-          console.error('Lookup error:', error);
-          return false
-        }
-    });
-
-    if (validLeads.length > 0) {
-      validatedLeadsMap[contractorId] = validLeads;
-    }
-  }
-
-  return validatedLeadsMap;
 }
 
 function delay(ms: number) {
