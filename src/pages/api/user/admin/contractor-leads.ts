@@ -79,7 +79,7 @@ async function fetchLeadsForContractor(
   endDate?: string
 ): Promise<Lead[]> {
   const filters: HubSpotFilter[] = [
-    { propertyName: 'hs_lead_status', operator: 'EQ', value: 'CONNECTED' },
+    { propertyName: 'hs_lead_status', operator: 'EQ', value: 'SOLD' },
     { propertyName: 'company', operator: 'EQ', value: companyName },
   ];
 

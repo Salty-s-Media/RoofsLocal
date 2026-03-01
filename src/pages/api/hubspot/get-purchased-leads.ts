@@ -62,7 +62,7 @@ export default async function handler(
               {
                 propertyName: "hs_lead_status",
                 operator: "EQ",
-                value: "CONNECTED",
+                value: "SOLD",
               },
             ],
           },

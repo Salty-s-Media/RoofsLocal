@@ -77,7 +77,7 @@ export default async function handler(
 
         // Filter first by OPEN leads for ZIP
         const filteredResults = data.results.filter(
-          (contact: HSLead) => contact.properties.hs_lead_status === "OPEN"
+          (contact: HSLead) => contact.properties.hs_lead_status === "NEW_LEAD"
         );
 
         // Map the filtered results to the desired output format

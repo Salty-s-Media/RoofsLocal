@@ -40,7 +40,8 @@ interface LeadsApiResponse {
   pricePerLead: number;
   totalLeads: number;
   moneySpent: number;
-  connectedJobs: number;
+  soldJobs: number;
+  appointmentCompletedCount: number;
   totalRevenue: number;
   leads: Lead[];
 }
@@ -50,10 +51,15 @@ interface LeadsApiResponse {
 /* ------------------------------------------------------------------ */
 
 const STATUS_OPTIONS: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  OPEN: { label: 'OPEN', bg: '#faf5ff', text: '#7e22ce', border: '#c084fc' },
-  IN_PROGRESS: { label: 'IN PROGRESS', bg: '#eff6ff', text: '#1e40af', border: '#93c5fd' },
-  CONNECTED: { label: 'CONNECTED', bg: '#f0fdf4', text: '#15803d', border: '#86efac' },
+  NEW_LEAD:               { label: 'NEW LEAD',               bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' },  // Gray
+  APPOINTMENT_SCHEDULED:  { label: 'APPT SCHEDULED',         bg: '#eff6ff', text: '#1e40af', border: '#93c5fd' },  // Blue
+  APPOINTMENT_COMPLETED:  { label: 'APPT COMPLETED',         bg: '#faf5ff', text: '#7e22ce', border: '#c084fc' },  // Purple
+  NOT_SOLD:               { label: 'NOT SOLD',               bg: '#fff7ed', text: '#c2410c', border: '#fdba74' },  // Orange
+  SOLD:                   { label: 'SOLD',                   bg: '#f0fdf4', text: '#15803d', border: '#86efac' },  // Green
+  DEAD:                   { label: 'DEAD',                   bg: '#fef2f2', text: '#991b1b', border: '#fca5a5' },  // Red
 };
+
+const STATUS_KEYS = Object.keys(STATUS_OPTIONS);
 
 const DEFAULT_BADGE = { label: 'UNKNOWN', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
 
@@ -114,14 +120,21 @@ const secondaryBtn: React.CSSProperties = { ...primaryBtn, background: '#64748b'
 /*  Sub-components                                                     */
 /* ------------------------------------------------------------------ */
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, onClick }: { status: string; onClick?: () => void }) {
   const cfg = STATUS_OPTIONS[status] || DEFAULT_BADGE;
   return (
-    <span style={{
-      display: 'inline-block', padding: '4px 10px', borderRadius: 6,
-      fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
-      background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`, whiteSpace: 'nowrap',
-    }}>{cfg.label}</span>
+    <span
+      onClick={onClick}
+      style={{
+        display: 'inline-block', padding: '4px 10px', borderRadius: 6,
+        fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
+        background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`, whiteSpace: 'nowrap',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'box-shadow 0.15s',
+      }}
+      onMouseEnter={(e) => { if (onClick) e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+    >{cfg.label}</span>
   );
 }
 
@@ -130,11 +143,11 @@ function StatusDropdown({ currentStatus, onUpdate, onClose }: {
 }) {
   return (
     <div style={{
-      position: 'absolute', right: 0, top: '100%', marginTop: 4,
+      position: 'absolute', left: 0, top: '100%', marginTop: 4,
       background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
       border: '1px solid #e2e8f0', zIndex: 50, minWidth: 200, padding: '6px 0',
     }}>
-      {Object.keys(STATUS_OPTIONS).map((s) => (
+      {STATUS_KEYS.map((s) => (
         <button key={s} onClick={() => { onUpdate(s); onClose(); }} style={{
           display: 'flex', alignItems: 'center', gap: 8, width: '100%',
           padding: '8px 14px', border: 'none',
@@ -177,24 +190,24 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function RevenueCell({ lead, onSave }: { lead: Lead; onSave: (id: string, rev: number) => void }) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(String(lead.revenue ?? 500));
+  const [value, setValue] = useState(String(lead.revenue ?? 0));
 
-  if (lead.status !== 'CONNECTED') {
-    return <span style={{ color: '#cbd5e1', fontWeight: 700 }}>—</span>;
+  if (lead.status !== 'SOLD') {
+    return <span style={{ color: '#cbd5e1', fontWeight: 700 }}>{fmt(0)}</span>;
   }
 
   if (!editing) {
     return (
       <button
-        onClick={() => { setValue(String(lead.revenue ?? 500)); setEditing(true); }}
+        onClick={() => { setValue(String(lead.revenue ?? 0)); setEditing(true); }}
         title="Click to edit revenue"
         style={{
           background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700,
-          color: '#0f172a', fontSize: 14, padding: 0,
-          borderBottom: '1px dashed #94a3b8',
+          color: '#15803d', fontSize: 14, padding: 0,
+          borderBottom: '1px dashed #86efac',
         }}
       >
-        {fmt(lead.revenue ?? 500)}
+        {fmt(lead.revenue ?? 0)}
       </button>
     );
   }
@@ -394,15 +407,27 @@ export default function Dashboard() {
 
   /* ---- KPIs ---- */
   const moneySpent = leads.length * pricePerLead;
-  const connectedLeads = leads.filter((l) => l.status === 'CONNECTED');
-  const totalRevenue = connectedLeads.reduce((s, l) => s + (l.revenue ?? 0), 0);
+  const soldLeads = leads.filter((l) => l.status === 'SOLD');
+  const appointmentCompletedLeads = leads.filter((l) => l.status === 'APPOINTMENT_COMPLETED');
+  const totalRevenue = soldLeads.reduce((s, l) => s + (l.revenue ?? 0), 0);
   const roi = moneySpent > 0 ? (totalRevenue / moneySpent).toFixed(1) : '0.0';
+  const closeRate = appointmentCompletedLeads.length > 0
+    ? ((soldLeads.length / appointmentCompletedLeads.length) * 100).toFixed(1)
+    : '0.0';
+  const leadToSale = leads.length > 0
+    ? ((soldLeads.length / leads.length) * 100).toFixed(1)
+    : '0.0';
 
   const handleFilter = () => { setActiveFrom(fromDate); setActiveTo(toDate); };
   const handleReset = () => { const d = defaultRange(); setFromDate(d.from); setToDate(d.to); setActiveFrom(d.from); setActiveTo(d.to); };
 
   const updateStatus = useCallback(async (leadId: string, newStatus: string) => {
-    setLeads((p) => p.map((l) => l.id === leadId ? { ...l, status: newStatus, revenue: newStatus === 'CONNECTED' ? (l.revenue ?? 500) : null } : l));
+    setLeads((p) => p.map((l) => {
+      if (l.id !== leadId) return l;
+      // Reset revenue to 0 when moving away from SOLD
+      const revenue = newStatus === 'SOLD' ? (l.revenue ?? 0) : 0;
+      return { ...l, status: newStatus, revenue };
+    }));
     try {
       await fetch('/api/user/leads/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId: leadId, status: newStatus }) });
     } catch (e) { console.error(e); }
@@ -512,8 +537,10 @@ export default function Dashboard() {
         {/* ======== KPI CARDS ======== */}
         <div style={{ display: 'flex', gap: 20, marginTop: -20, marginBottom: 24, flexWrap: 'wrap' }}>
           <KpiCard label="Money Spent" value={fmt(moneySpent)} subtitle={`${leads.length} leads × ${fmt(pricePerLead)}/lead`} accentColor="#ef4444" />
-          <KpiCard label="Total Revenue" value={fmt(totalRevenue)} subtitle={`${connectedLeads.length} connected jobs. (Edit Revenue to Update)`} accentColor="#22c55e" />
-          <KpiCard label="Return on Investment" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
+          <KpiCard label="Total Revenue" value={fmt(totalRevenue)} subtitle={`${soldLeads.length} sold jobs`} accentColor="#22c55e" />
+          <KpiCard label="ROI" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
+          <KpiCard label="Close Rate" value={`${closeRate}%`} subtitle={`${soldLeads.length} sold ÷ ${appointmentCompletedLeads.length} appts completed`} accentColor="#7e22ce" />
+          <KpiCard label="Lead to Sale" value={`${leadToSale}%`} subtitle={`${soldLeads.length} sold ÷ ${leads.length} total leads`} accentColor="#c2410c" />
         </div>
 
         {/* ======== DATE FILTER ======== */}
@@ -550,7 +577,7 @@ export default function Dashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                    {['Date', 'Name', 'Phone', 'Email', 'Address', 'Status', 'Revenue', 'Actions'].map((h) => (
+                    {['Date', 'Name', 'Phone', 'Email', 'Address', 'Status', 'Revenue'].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                     ))}
                   </tr>
@@ -565,23 +592,19 @@ export default function Dashboard() {
                       <td style={{ padding: 16, color: '#334155', whiteSpace: 'nowrap' }}>{lead.phone}</td>
                       <td style={{ padding: 16, color: '#334155' }}>{lead.email}</td>
                       <td style={{ padding: 16, color: '#334155' }}>{[lead.streetAddress, lead.city, lead.zipCode].filter(Boolean).join(', ')}</td>
-                      <td style={{ padding: 16 }}><StatusBadge status={lead.status} /></td>
-                      <td style={{ padding: 16 }}>
-                        <RevenueCell lead={lead} onSave={updateRevenue} />
-                      </td>
                       <td style={{ padding: 16, position: 'relative' }}>
-                        <button onClick={() => setOpenDropdown(openDropdown === lead.id ? null : lead.id)}
-                          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Update Status
-                        </button>
+                        <StatusBadge status={lead.status} onClick={() => setOpenDropdown(openDropdown === lead.id ? null : lead.id)} />
                         {openDropdown === lead.id && (
                           <StatusDropdown currentStatus={lead.status} onUpdate={(s) => updateStatus(lead.id, s)} onClose={() => setOpenDropdown(null)} />
                         )}
                       </td>
+                      <td style={{ padding: 16 }}>
+                        <RevenueCell lead={lead} onSave={updateRevenue} />
+                      </td>
                     </tr>
                   ))}
                   {leads.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: 48, textAlign: 'center', color: '#94a3b8', fontSize: 15 }}>No leads found for the selected date range.</td></tr>
+                    <tr><td colSpan={7} style={{ padding: 48, textAlign: 'center', color: '#94a3b8', fontSize: 15 }}>No leads found for the selected date range.</td></tr>
                   )}
                 </tbody>
               </table>

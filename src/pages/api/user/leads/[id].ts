@@ -59,23 +59,33 @@ const LEAD_PROPERTIES = [
   "lead_revenue",
 ];
 
-const DEFAULT_REVENUE = 500;
+/**
+ * Migrate legacy HubSpot statuses to the new pipeline values.
+ * CONNECTED  → APPOINTMENT_COMPLETED
+ * IN_PROGRESS → APPOINTMENT_SCHEDULED
+ * OPEN        → NEW_LEAD
+ */
+const STATUS_MIGRATION: Record<string, string> = {
+  OPEN: "NEW_LEAD",
+  IN_PROGRESS: "APPOINTMENT_SCHEDULED",
+  CONNECTED: "APPOINTMENT_COMPLETED",
+};
 
 /**
  * Maps a HubSpot contact to our lead shape.
- * Revenue: uses lead_revenue from HubSpot if set, otherwise defaults to
- * $500 for CONNECTED leads (minimum assumed value).
+ * Revenue is only populated for SOLD leads.
  */
 function mapContact(
   contact: HubSpotContact,
   pricePerLeadDollars: number
 ): MappedLead {
-  const status = contact.properties.hs_lead_status || "OPEN";
+  const rawStatus = contact.properties.hs_lead_status || "NEW_LEAD";
+  const status = STATUS_MIGRATION[rawStatus] || rawStatus;
   const rawRevenue = contact.properties.lead_revenue;
 
   let revenue: number | null = null;
-  if (status === "CONNECTED") {
-    revenue = rawRevenue ? parseFloat(rawRevenue) : DEFAULT_REVENUE;
+  if (status === "SOLD") {
+    revenue = rawRevenue ? parseFloat(rawRevenue) : 0;
   }
 
   return {
@@ -251,23 +261,28 @@ export default async function handler(
     const totalLeads = leads.length;
     const moneySpent = totalLeads * pricePerLeadDollars;
 
-    // Revenue = CONNECTED leads × pricePerLead (each "paid for itself")
-    const connectedLeads = leads.filter((l) => l.status === "CONNECTED");
-    const totalRevenue = connectedLeads.reduce(
+    // Revenue = only SOLD leads
+    const soldLeads = leads.filter((l) => l.status === "SOLD");
+    const totalRevenue = soldLeads.reduce(
       (sum, l) => sum + (l.revenue ?? 0),
       0
     );
 
-    // Email OPEN leads only (preserves original behavior)
-    const openLeads = leads.filter((l) => l.status === "OPEN");
-    sendEmail(contractor.email, openLeads);
+    const appointmentCompletedLeads = leads.filter(
+      (l) => l.status === "APPOINTMENT_COMPLETED"
+    );
+
+    // Email NEW_LEAD leads only (preserves original behavior)
+    const newLeads = leads.filter((l) => l.status === "NEW_LEAD");
+    sendEmail(contractor.email, newLeads);
 
     return res.status(200).json({
       contractorName: contractor.company,
       pricePerLead: pricePerLeadDollars,
       totalLeads,
       moneySpent,
-      connectedJobs: connectedLeads.length,
+      soldJobs: soldLeads.length,
+      appointmentCompletedCount: appointmentCompletedLeads.length,
       totalRevenue,
       leads,
     });

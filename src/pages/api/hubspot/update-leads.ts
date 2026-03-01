@@ -76,7 +76,7 @@ export default async function handler(
       const propertiesToUpdate = {
         properties: {
           owner: `${company}`,
-          hs_lead_status: "CONNECTED",
+          hs_lead_status: "SOLD",
         },
       };
 

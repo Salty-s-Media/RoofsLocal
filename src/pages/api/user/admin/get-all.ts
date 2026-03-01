@@ -29,7 +29,7 @@ async function countLeadsForContractor(
   endDate?: string
 ): Promise<number> {
   const filters: HubSpotFilter[] = [
-    { propertyName: 'hs_lead_status', operator: 'EQ', value: 'CONNECTED' },
+    { propertyName: 'hs_lead_status', operator: 'EQ', value: 'SOLD' },
     { propertyName: 'company', operator: 'EQ', value: companyName },
   ];
 

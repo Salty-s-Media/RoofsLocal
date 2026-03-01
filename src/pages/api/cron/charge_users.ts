@@ -51,11 +51,11 @@ export default async function handler(
 }
 
 async function getOpenLeads() {
-  return getHubspotLeads('OPEN');
+  return getHubspotLeads('NEW_LEAD');
 }
 
 async function getUnpaidLeads() {
-  return getHubspotLeads('IN_PROGRESS');
+  return getHubspotLeads('APPOINTMENT_SCHEDULED');
 }
 
 async function getHubspotLeads(status: string) {
@@ -384,9 +384,9 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       if (leads.length === 0) continue;
 
       // --- Duplicate billing protection ---
-      // Mark leads as CONNECTED *before* charging so a concurrent run won't pick them up.
-      // If the charge fails we revert them back to IN_PROGRESS.
-      await updateHubspotLeads(leads, 'CONNECTED');
+      // Mark leads as APPOINTMENT_COMPLETED *before* charging so a concurrent run won't pick them up.
+      // If the charge fails we revert them back to APPOINTMENT_SCHEDULED.
+      await updateHubspotLeads(leads, 'APPOINTMENT_COMPLETED');
 
       const cost = leads.length * contractor.pricePerLead;
       const leadIds = leads.map((l: any) => l.id);
@@ -412,7 +412,7 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
         if (payment.status !== 'succeeded') {
           console.error("Payment didn't process:", payment.status);
           // Revert leads so they get picked up on the next run
-          await updateHubspotLeads(leads, 'IN_PROGRESS');
+          await updateHubspotLeads(leads, 'APPOINTMENT_SCHEDULED');
           continue;
         }
 
@@ -420,8 +420,8 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
           `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
         );
       } catch (chargeError) {
-        console.error('Charge failed, reverting leads to IN_PROGRESS:', chargeError);
-        await updateHubspotLeads(leads, 'IN_PROGRESS');
+        console.error('Charge failed, reverting leads to APPOINTMENT_SCHEDULED:', chargeError);
+        await updateHubspotLeads(leads, 'APPOINTMENT_SCHEDULED');
       }
     } catch (error) {
       console.error('Error charging contractor:', error);
@@ -482,7 +482,7 @@ async function sendEmail(contractor: any, leads: any[]) {
   });
 }
 
-async function updateHubspotLeads(leads: any[], status: string = 'CONNECTED') {
+async function updateHubspotLeads(leads: any[], status: string = 'APPOINTMENT_COMPLETED') {
   const updateRequests = leads.map((lead) => ({
     id: lead.id,
     properties: { hs_lead_status: status },
