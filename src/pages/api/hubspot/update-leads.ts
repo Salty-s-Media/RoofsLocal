@@ -8,7 +8,6 @@ interface Contact {
   id: string;
   properties: {
     owner: string;
-    hs_lead_status: string;
   };
 }
 
@@ -73,10 +72,11 @@ export default async function handler(
       }
 
       console.log("Contact IDs: ", idResults);
+      // Only update company ownership — NEVER touch hs_lead_status here.
+      // Dashboard pipeline status lives in the local LeadStatus table.
       const propertiesToUpdate = {
         properties: {
           owner: `${company}`,
-          hs_lead_status: "NEW_LEAD",
         },
       };
 

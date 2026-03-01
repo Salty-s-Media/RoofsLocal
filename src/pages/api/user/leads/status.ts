@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { PrismaClient } from "@prisma/client";
 
-const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
+const prisma = new PrismaClient();
 
 const VALID_STATUSES = [
   "NEW_LEAD",
@@ -14,10 +15,10 @@ const VALID_STATUSES = [
 /**
  * PATCH /api/user/leads/status
  *
- * Updates a HubSpot contact's hs_lead_status and/or lead_revenue.
- * When status changes away from SOLD, revenue is automatically reset to 0.
+ * Updates a lead's dashboard status and/or revenue in the LOCAL database.
+ * This NEVER touches HubSpot — dashboard pipeline is fully decoupled.
  *
- * Body: { contactId: string, status?: string, revenue?: number }
+ * Body: { contactId: string, contractorId: string, status?: string, revenue?: number }
  */
 export default async function handler(
   req: NextApiRequest,
@@ -28,10 +29,14 @@ export default async function handler(
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
-  const { contactId, status, revenue } = req.body;
+  const { contactId, contractorId, status, revenue } = req.body;
 
   if (!contactId || typeof contactId !== "string") {
     return res.status(400).json({ error: "contactId is required" });
+  }
+
+  if (!contractorId || typeof contractorId !== "string") {
+    return res.status(400).json({ error: "contractorId is required" });
   }
 
   if (status && !VALID_STATUSES.includes(status)) {
@@ -40,7 +45,6 @@ export default async function handler(
 
   // Enforce revenue constraints at the API boundary
   if (status === "SOLD" && (revenue === undefined || revenue === null || revenue <= 0)) {
-    // When setting status to SOLD, a positive revenue value MUST be included
     return res.status(400).json({ error: "Revenue must be greater than 0 when status is SOLD" });
   }
 
@@ -48,51 +52,45 @@ export default async function handler(
     return res.status(400).json({ error: "Revenue must be 0 when status is not SOLD" });
   }
 
-  const properties: Record<string, string> = {};
+  // Build the update data
+  const data: { status?: string; revenue?: number } = {};
 
   if (status) {
-    properties.hs_lead_status = status;
+    data.status = status;
     if (status !== "SOLD") {
-      // Non-SOLD statuses always have revenue = 0
-      properties.lead_revenue = "0";
+      data.revenue = 0;
     }
   }
 
   if (revenue !== undefined && revenue !== null) {
-    properties.lead_revenue = String(revenue);
+    data.revenue = revenue;
   }
 
-  if (Object.keys(properties).length === 0) {
+  if (Object.keys(data).length === 0) {
     return res.status(400).json({ error: "Nothing to update" });
   }
 
   try {
-    const hubspotResponse = await fetch(
-      `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+    // Upsert: create the row if it doesn't exist yet, update if it does
+    const updated = await prisma.leadStatus.upsert({
+      where: {
+        hubspotContactId_contractorId: {
+          hubspotContactId: contactId,
+          contractorId,
         },
-        body: JSON.stringify({ properties }),
-      }
-    );
+      },
+      update: data,
+      create: {
+        hubspotContactId: contactId,
+        contractorId,
+        status: data.status ?? "NEW_LEAD",
+        revenue: data.revenue ?? 0,
+      },
+    });
 
-    if (!hubspotResponse.ok) {
-      const errorBody = await hubspotResponse.text();
-      console.error(
-        `HubSpot update failed for contact ${contactId}: ${hubspotResponse.status} - ${errorBody}`
-      );
-      return res
-        .status(hubspotResponse.status)
-        .json({ error: "Failed to update HubSpot contact" });
-    }
-
-    const updated = await hubspotResponse.json();
-    return res.status(200).json({ success: true, contact: updated });
+    return res.status(200).json({ success: true, leadStatus: updated });
   } catch (error) {
-    console.error("Error updating HubSpot contact:", error);
+    console.error("Error updating lead status:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -4,12 +4,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 
-interface HubSpotFilter {
-  propertyName: string;
-  operator: string;
-  value: string;
-}
-
 interface HubSpotContact {
   id: string;
   properties: {
@@ -70,70 +64,60 @@ function mapContact(contact: HubSpotContact): Lead {
 }
 
 /**
- * Fetches all CONNECTED leads from HubSpot for a contractor by company name,
- * filtered by date range. Paginates through all results.
+ * Fetches SOLD leads for a contractor.
+ * Uses the local LeadStatus table to find which leads are SOLD,
+ * then fetches their contact details from HubSpot.
  */
-async function fetchLeadsForContractor(
-  companyName: string,
-  startDate?: string,
-  endDate?: string
+async function fetchSoldLeadsForContractor(
+  contractorId: string
 ): Promise<Lead[]> {
-  const filters: HubSpotFilter[] = [
-    { propertyName: 'hs_lead_status', operator: 'EQ', value: 'SOLD' },
-    { propertyName: 'company', operator: 'EQ', value: companyName },
-  ];
+  // 1. Get SOLD lead IDs from local DB
+  const soldStatuses = await prisma.leadStatus.findMany({
+    where: {
+      contractorId,
+      status: 'SOLD',
+    },
+    select: { hubspotContactId: true },
+  });
 
-  if (startDate) {
-    filters.push({
-      propertyName: 'createdate',
-      operator: 'GTE',
-      value: new Date(startDate).getTime().toString(),
-    });
-  }
-  if (endDate) {
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    filters.push({
-      propertyName: 'createdate',
-      operator: 'LTE',
-      value: end.getTime().toString(),
-    });
-  }
+  if (soldStatuses.length === 0) return [];
 
+  const soldIds = soldStatuses.map((s) => s.hubspotContactId);
+
+  // 2. Fetch contact details from HubSpot for those IDs
   const allLeads: Lead[] = [];
-  let after: string | undefined;
 
-  do {
+  // Batch in chunks of 100
+  for (let i = 0; i < soldIds.length; i += 100) {
+    const chunk = soldIds.slice(i, i + 100);
+
     try {
-      const body: Record<string, unknown> = {
-        filterGroups: [{ filters }],
-        properties: LEAD_PROPERTIES,
-        limit: 100,
-      };
-      if (after) body.after = after;
-
       const response = await fetch(
-        'https://api.hubapi.com/crm/v3/objects/contacts/search',
+        'https://api.hubapi.com/crm/v3/objects/contacts/batch/read',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${HUBSPOT_API_KEY}`,
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            properties: LEAD_PROPERTIES,
+            inputs: chunk.map((id) => ({ id })),
+          }),
         }
       );
 
       if (!response.ok) break;
 
-      const data: HubSpotSearchResponse = await response.json();
-      allLeads.push(...data.results.map(mapContact));
-      after = data.paging?.next?.after;
+      const data = await response.json();
+      if (data.results) {
+        allLeads.push(...data.results.map(mapContact));
+      }
     } catch (error) {
-      console.error(`Error fetching leads for ${companyName}:`, error);
+      console.error(`Error fetching contacts from HubSpot:`, error);
       break;
     }
-  } while (after);
+  }
 
   // Sort newest first
   allLeads.sort(
@@ -152,7 +136,7 @@ export default async function handler(
     return res.status(405).end('Method Not Allowed');
   }
 
-  const { contractorId, startDate, endDate } = req.query;
+  const { contractorId } = req.query;
 
   if (!contractorId || typeof contractorId !== 'string') {
     return res.status(400).json({ error: 'contractorId is required' });
@@ -167,10 +151,7 @@ export default async function handler(
       return res.status(404).json({ error: 'Contractor not found' });
     }
 
-    const start = typeof startDate === 'string' ? startDate : undefined;
-    const end = typeof endDate === 'string' ? endDate : undefined;
-
-    const leads = await fetchLeadsForContractor(contractor.company, start, end);
+    const leads = await fetchSoldLeadsForContractor(contractorId);
     const leadsSent = leads.length;
     const revenueCollected = leadsSent * contractor.pricePerLead;
 

@@ -2,80 +2,25 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Contractor } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
 
 interface ContractorWithStats extends Contractor {
   leadsSent: number;
   revenueCollected: number;
 }
 
-interface HubSpotFilter {
-  propertyName: string;
-  operator: string;
-  value: string;
-}
-
-interface HubSpotSearchResponse {
-  total: number;
-}
-
 /**
- * Counts CONNECTED leads in HubSpot for a contractor by company name + date range.
- * Single API call per contractor — no zip batching needed.
+ * Counts SOLD leads from the local LeadStatus table for a contractor.
+ * No HubSpot calls needed — dashboard status is fully local.
  */
-async function countLeadsForContractor(
-  companyName: string,
-  startDate?: string,
-  endDate?: string
+async function countSoldLeadsForContractor(
+  contractorId: string
 ): Promise<number> {
-  const filters: HubSpotFilter[] = [
-    { propertyName: 'hs_lead_status', operator: 'EQ', value: 'SOLD' },
-    { propertyName: 'company', operator: 'EQ', value: companyName },
-  ];
-
-  if (startDate) {
-    filters.push({
-      propertyName: 'createdate',
-      operator: 'GTE',
-      value: new Date(startDate).getTime().toString(),
-    });
-  }
-  if (endDate) {
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    filters.push({
-      propertyName: 'createdate',
-      operator: 'LTE',
-      value: end.getTime().toString(),
-    });
-  }
-
-  try {
-    const response = await fetch(
-      'https://api.hubapi.com/crm/v3/objects/contacts/search',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-        },
-        body: JSON.stringify({
-          filterGroups: [{ filters }],
-          properties: ['hs_lead_status'],
-          limit: 1,
-        }),
-      }
-    );
-
-    if (response.ok) {
-      const data: HubSpotSearchResponse = await response.json();
-      return data.total ?? 0;
-    }
-    return 0;
-  } catch (error) {
-    console.error(`Error counting leads for ${companyName}:`, error);
-    return 0;
-  }
+  return prisma.leadStatus.count({
+    where: {
+      contractorId,
+      status: 'SOLD',
+    },
+  });
 }
 
 export default async function handler(
@@ -88,20 +33,11 @@ export default async function handler(
   }
 
   try {
-    const { startDate, endDate } = req.query;
-    const start = typeof startDate === 'string' ? startDate : undefined;
-    const end = typeof endDate === 'string' ? endDate : undefined;
-
     const contractors = await prisma.contractor.findMany();
 
-    // One HubSpot call per contractor — safe to parallelize
     const statsPromises = contractors.map(
       async (contractor): Promise<ContractorWithStats> => {
-        const leadsSent = await countLeadsForContractor(
-          contractor.company,
-          start,
-          end
-        );
+        const leadsSent = await countSoldLeadsForContractor(contractor.id);
         const revenueCollected = leadsSent * contractor.pricePerLead;
 
         return {

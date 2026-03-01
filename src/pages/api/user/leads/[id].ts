@@ -19,8 +19,6 @@ interface HubSpotContact {
     city: string;
     zip: string;
     createdate: string;
-    hs_lead_status: string;
-    lead_revenue: string | null;
   };
 }
 
@@ -46,6 +44,7 @@ interface MappedLead {
   revenue: number | null;
 }
 
+// HubSpot contact info only — no status fields needed
 const LEAD_PROPERTIES = [
   "firstname",
   "lastname",
@@ -55,39 +54,17 @@ const LEAD_PROPERTIES = [
   "city",
   "zip",
   "createdate",
-  "hs_lead_status",
-  "lead_revenue",
 ];
 
 /**
- * Migrate legacy and internal statuses to the new pipeline values.
- * All legacy statuses are reset to NEW_LEAD.
- * BILLING_PENDING is an internal cron status that should display as NEW_LEAD.
- */
-const STATUS_MIGRATION: Record<string, string> = {
-  OPEN: "NEW_LEAD",
-  IN_PROGRESS: "NEW_LEAD",
-  CONNECTED: "NEW_LEAD",
-  BILLING_PENDING: "NEW_LEAD",
-};
-
-/**
  * Maps a HubSpot contact to our lead shape.
- * Revenue is only populated for SOLD leads.
+ * Status and revenue come from the local LeadStatus table, NOT HubSpot.
  */
 function mapContact(
   contact: HubSpotContact,
-  pricePerLeadDollars: number
+  localStatus: string,
+  localRevenue: number
 ): MappedLead {
-  const rawStatus = contact.properties.hs_lead_status || "NEW_LEAD";
-  const status = STATUS_MIGRATION[rawStatus] || rawStatus;
-  const rawRevenue = contact.properties.lead_revenue;
-
-  let revenue: number | null = null;
-  if (status === "SOLD") {
-    revenue = rawRevenue ? parseFloat(rawRevenue) : 0;
-  }
-
   return {
     id: contact.id,
     firstName: contact.properties.firstname || "",
@@ -98,8 +75,8 @@ function mapContact(
     city: contact.properties.city || "",
     zipCode: contact.properties.zip || "",
     createdAt: contact.properties.createdate || "",
-    status,
-    revenue,
+    status: localStatus,
+    revenue: localStatus === "SOLD" ? localRevenue : null,
   };
 }
 
@@ -121,15 +98,18 @@ async function sendEmail(email: string, leads: MappedLead[]) {
 
 /**
  * Fetches ALL leads from HubSpot for a contractor by company name.
- * Supports optional date-range filtering. Paginates through all results.
+ * Merges in status + revenue from the local LeadStatus table.
+ * Any lead without a local status row defaults to NEW_LEAD / revenue 0.
  */
 async function fetchLeadsForCompany(
+  contractorId: string,
   companyName: string,
   pricePerLeadDollars: number,
   startDate?: string,
   endDate?: string
 ): Promise<MappedLead[]> {
-  const allLeads: MappedLead[] = [];
+  // 1. Fetch contact info from HubSpot (no status fields)
+  const hubspotContacts: HubSpotContact[] = [];
   let after: string | undefined;
 
   do {
@@ -191,9 +171,7 @@ async function fetchLeadsForCompany(
       }
 
       const data: HubSpotSearchResponse = await hubspotResponse.json();
-      allLeads.push(
-        ...data.results.map((c) => mapContact(c, pricePerLeadDollars))
-      );
+      hubspotContacts.push(...data.results);
       after = data.paging?.next?.after;
     } catch (error) {
       console.error(
@@ -203,6 +181,34 @@ async function fetchLeadsForCompany(
       break;
     }
   } while (after);
+
+  if (hubspotContacts.length === 0) return [];
+
+  // 2. Fetch all local statuses for this contractor in one query
+  const contactIds = hubspotContacts.map((c) => c.id);
+  const localStatuses = await prisma.leadStatus.findMany({
+    where: {
+      contractorId,
+      hubspotContactId: { in: contactIds },
+    },
+  });
+
+  // Build a lookup map: hubspotContactId → { status, revenue }
+  const statusMap = new Map<string, { status: string; revenue: number }>();
+  for (const ls of localStatuses) {
+    statusMap.set(ls.hubspotContactId, {
+      status: ls.status,
+      revenue: ls.revenue,
+    });
+  }
+
+  // 3. Merge: HubSpot contact info + local status/revenue
+  const allLeads = hubspotContacts.map((contact) => {
+    const local = statusMap.get(contact.id);
+    const status = local?.status ?? "NEW_LEAD";
+    const revenue = local?.revenue ?? 0;
+    return mapContact(contact, status, revenue);
+  });
 
   allLeads.sort(
     (a, b) =>
@@ -248,6 +254,7 @@ export default async function handler(
     const pricePerLeadDollars = (contractor.pricePerLead ?? 0) / 100;
 
     const leads = await fetchLeadsForCompany(
+      id,
       contractor.company,
       pricePerLeadDollars,
       start,
@@ -261,7 +268,7 @@ export default async function handler(
     const totalLeads = leads.length;
     const moneySpent = totalLeads * pricePerLeadDollars;
 
-    // Revenue = only SOLD leads
+    // Revenue = only SOLD leads (from local DB)
     const soldLeads = leads.filter((l) => l.status === "SOLD");
     const totalRevenue = soldLeads.reduce(
       (sum, l) => sum + (l.revenue ?? 0),

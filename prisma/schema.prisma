@@ -48,4 +48,21 @@ model Contractor {
   ghlPipelineStageId String   @default("")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  leadStatuses       LeadStatus[]
+}
+
+/// Dashboard-only lead status + revenue.
+/// Completely independent from HubSpot's hs_lead_status.
+/// HubSpot is used for contact info and billing; this table owns pipeline state.
+model LeadStatus {
+  id                 String   @id @default(cuid())
+  hubspotContactId   String
+  contractorId       String
+  status             String   @default("NEW_LEAD")
+  revenue            Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  contractor         Contractor @relation(fields: [contractorId], references: [id])
+
+  @@unique([hubspotContactId, contractorId])
 }

@@ -622,9 +622,9 @@ export default function Dashboard() {
     setLeads((p) => p.map((l) => l.id === leadId ? { ...l, status: newStatus, revenue } : l));
     fetch('/api/user/leads/status', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contactId: leadId, status: newStatus }),
+      body: JSON.stringify({ contactId: leadId, contractorId: user.id, status: newStatus }),
     }).catch(console.error);
-  }, [leads]);
+  }, [leads, user.id]);
 
   /** Called when user saves revenue from the modal — atomic status + revenue update */
   const handleRevenueModalSave = useCallback((revenue: number) => {
@@ -634,9 +634,9 @@ export default function Dashboard() {
     setRevenueModal(null);
     fetch('/api/user/leads/status', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contactId: leadId, status: 'SOLD', revenue }),
+      body: JSON.stringify({ contactId: leadId, contractorId: user.id, status: 'SOLD', revenue }),
     }).catch(console.error);
-  }, [revenueModal]);
+  }, [revenueModal, user.id]);
 
   /** Called when user cancels the revenue modal — revert to previous status */
   const handleRevenueModalCancel = useCallback(() => {
@@ -649,9 +649,9 @@ export default function Dashboard() {
     if (newRevenue <= 0) return;
     setLeads((p) => p.map((l) => l.id === leadId ? { ...l, revenue: newRevenue } : l));
     try {
-      await fetch('/api/user/leads/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId: leadId, revenue: newRevenue }) });
+      await fetch('/api/user/leads/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId: leadId, contractorId: user.id, revenue: newRevenue }) });
     } catch (e) { console.error(e); }
-  }, []);
+  }, [user.id]);
 
   /* ---- Toast helper ---- */
   const toast = (setter: (v: any) => void, msg: string, type: 'success' | 'error') => {

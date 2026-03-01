@@ -138,6 +138,9 @@ async function importHubspotContact(contact: any, contractor: any) {
 
 
 async function updateHubspotContact(objectId: string, company: string) {
+  // Only update company assignment — NEVER touch hs_lead_status here.
+  // Dashboard pipeline status is stored locally in the LeadStatus table
+  // and must only change through the Roofs Local UI.
   const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/batch/update", {
     method: "POST",
     headers: {
@@ -149,7 +152,6 @@ async function updateHubspotContact(objectId: string, company: string) {
         id: objectId,
         properties: {
           company: company,
-          hs_lead_status: "NEW_LEAD",
         }
       }]
     })
