@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(200).send({ message: `No contractor found for zip code: ${zip}, nothing done` });
     }
     await importHubspotContact(contact, contractor);
-    await updateHubspotContact(objectId, contractor?.company || "Unknown Company");
+    await updateHubspotContact(objectId, contractor?.company || "Unknown Company", contact.hs_lead_status);
     const ghlData = await createGHLContact(contact, contractor);
     if (ghlData) {
       await createGHLOpporunity(ghlData.contact.id, contact, contractor);
@@ -137,10 +137,25 @@ async function importHubspotContact(contact: any, contractor: any) {
 }
 
 
-async function updateHubspotContact(objectId: string, company: string) {
-  // Only update company assignment — NEVER touch hs_lead_status here.
-  // Dashboard pipeline status is stored locally in the LeadStatus table
-  // and must only change through the Roofs Local UI.
+async function updateHubspotContact(objectId: string, company: string, currentStatus: string | null) {
+  // Set hs_lead_status to NEW_LEAD ONLY for brand-new leads (no existing status).
+  // The billing cron (charge_users.ts) searches for hs_lead_status = 'NEW_LEAD'
+  // to find unbilled leads, so new contacts need this value in HubSpot.
+  //
+  // If the lead already has a status (e.g. BILLING_PENDING from a cron in progress),
+  // do NOT overwrite it — that would break the cron's dedup protection.
+  //
+  // IMPORTANT: This hs_lead_status is used ONLY by the billing cron.
+  // The dashboard's pipeline status is stored locally in the LeadStatus table
+  // and is completely independent — HubSpot cannot overwrite it.
+  const properties: Record<string, string> = {
+    company: company,
+  };
+
+  if (!currentStatus) {
+    properties.hs_lead_status = "NEW_LEAD";
+  }
+
   const hubspotResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts/batch/update", {
     method: "POST",
     headers: {
@@ -150,9 +165,7 @@ async function updateHubspotContact(objectId: string, company: string) {
     body: JSON.stringify({
       inputs: [{
         id: objectId,
-        properties: {
-          company: company,
-        }
+        properties,
       }]
     })
   });
