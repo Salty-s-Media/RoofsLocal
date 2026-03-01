@@ -72,13 +72,23 @@ async function fetchSoldLeadsForContractor(
   contractorId: string
 ): Promise<Lead[]> {
   // 1. Get SOLD lead IDs from local DB
-  const soldStatuses = await prisma.leadStatus.findMany({
-    where: {
-      contractorId,
-      status: 'SOLD',
-    },
-    select: { hubspotContactId: true },
-  });
+  //    If the LeadStatus table hasn't been migrated yet, return empty.
+  let soldStatuses: { hubspotContactId: string }[];
+  try {
+    soldStatuses = await prisma.leadStatus.findMany({
+      where: {
+        contractorId,
+        status: 'SOLD',
+      },
+      select: { hubspotContactId: true },
+    });
+  } catch (err) {
+    console.error(
+      `[contractor-leads] LeadStatus query failed (migration may not be applied yet):`,
+      err
+    );
+    return [];
+  }
 
   if (soldStatuses.length === 0) return [];
 

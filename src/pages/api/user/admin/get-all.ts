@@ -15,12 +15,17 @@ interface ContractorWithStats extends Contractor {
 async function countSoldLeadsForContractor(
   contractorId: string
 ): Promise<number> {
-  return prisma.leadStatus.count({
-    where: {
-      contractorId,
-      status: 'SOLD',
-    },
-  });
+  try {
+    return await prisma.leadStatus.count({
+      where: {
+        contractorId,
+        status: 'SOLD',
+      },
+    });
+  } catch {
+    // Table may not exist yet if migration hasn't been applied
+    return 0;
+  }
 }
 
 export default async function handler(

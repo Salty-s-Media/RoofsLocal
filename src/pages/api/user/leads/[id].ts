@@ -184,22 +184,31 @@ async function fetchLeadsForCompany(
 
   if (hubspotContacts.length === 0) return [];
 
-  // 2. Fetch all local statuses for this contractor in one query
-  const contactIds = hubspotContacts.map((c) => c.id);
-  const localStatuses = await prisma.leadStatus.findMany({
-    where: {
-      contractorId,
-      hubspotContactId: { in: contactIds },
-    },
-  });
-
-  // Build a lookup map: hubspotContactId → { status, revenue }
+  // 2. Fetch all local statuses for this contractor in one query.
+  //    Wrapped in try-catch so leads still load if LeadStatus table
+  //    hasn't been migrated yet (all leads default to NEW_LEAD / $0).
   const statusMap = new Map<string, { status: string; revenue: number }>();
-  for (const ls of localStatuses) {
-    statusMap.set(ls.hubspotContactId, {
-      status: ls.status,
-      revenue: ls.revenue,
+  try {
+    const contactIds = hubspotContacts.map((c) => c.id);
+    const localStatuses = await prisma.leadStatus.findMany({
+      where: {
+        contractorId,
+        hubspotContactId: { in: contactIds },
+      },
     });
+
+    for (const ls of localStatuses) {
+      statusMap.set(ls.hubspotContactId, {
+        status: ls.status,
+        revenue: ls.revenue,
+      });
+    }
+  } catch (err) {
+    console.error(
+      `[leads/${contractorId}] LeadStatus query failed (migration may not be applied yet):`,
+      err
+    );
+    // statusMap stays empty → every lead defaults to NEW_LEAD / 0
   }
 
   // 3. Merge: HubSpot contact info + local status/revenue
