@@ -60,15 +60,15 @@ const LEAD_PROPERTIES = [
 ];
 
 /**
- * Migrate legacy HubSpot statuses to the new pipeline values.
- * CONNECTED  → APPOINTMENT_COMPLETED
- * IN_PROGRESS → APPOINTMENT_SCHEDULED
- * OPEN        → NEW_LEAD
+ * Migrate legacy and internal statuses to the new pipeline values.
+ * All legacy statuses are reset to NEW_LEAD.
+ * BILLING_PENDING is an internal cron status that should display as NEW_LEAD.
  */
 const STATUS_MIGRATION: Record<string, string> = {
   OPEN: "NEW_LEAD",
-  IN_PROGRESS: "APPOINTMENT_SCHEDULED",
-  CONNECTED: "APPOINTMENT_COMPLETED",
+  IN_PROGRESS: "NEW_LEAD",
+  CONNECTED: "NEW_LEAD",
+  BILLING_PENDING: "NEW_LEAD",
 };
 
 /**

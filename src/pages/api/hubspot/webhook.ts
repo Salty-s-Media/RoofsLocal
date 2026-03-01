@@ -149,7 +149,7 @@ async function updateHubspotContact(objectId: string, company: string) {
         id: objectId,
         properties: {
           company: company,
-          hs_lead_status: "APPOINTMENT_SCHEDULED",
+          hs_lead_status: "NEW_LEAD",
         }
       }]
     })

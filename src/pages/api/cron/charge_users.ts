@@ -27,21 +27,12 @@ export default async function handler(
 
   try {
     const openLeads = await getOpenLeads();
-    console.log(`${openLeads.length} open leads`);
-    const unpaidLeads = await getUnpaidLeads();
-    console.log(`${unpaidLeads.length} unpaid leads`);
+    console.log(`${openLeads.length} new leads to process`);
 
-    const contractorOpenLeadsMap = await matchLeads(openLeads);
-    const contractorUnpaidLeadsMap = await matchLeads(unpaidLeads);
+    const contractorLeadsMap = await matchLeads(openLeads);
+    const successfulLeadsMap = await handleOpenLeads(contractorLeadsMap);
 
-    const successfulOpenLeadsMap = await handleOpenLeads(contractorOpenLeadsMap);
-
-    const mergedLeadsMap = mergeLeadsMaps(
-      successfulOpenLeadsMap,
-      contractorUnpaidLeadsMap
-    );
-
-    await chargeForLeads(mergedLeadsMap);
+    await chargeForLeads(successfulLeadsMap);
 
     res.status(200).json({ message: 'Cron job executed successfully' });
   } catch (error) {
@@ -52,10 +43,6 @@ export default async function handler(
 
 async function getOpenLeads() {
   return getHubspotLeads('NEW_LEAD');
-}
-
-async function getUnpaidLeads() {
-  return getHubspotLeads('APPOINTMENT_SCHEDULED');
 }
 
 async function getHubspotLeads(status: string) {
@@ -349,23 +336,6 @@ async function createGHLOpporunity(
   console.log('GHL create oportunity response: ', ghlResponse);
 }
 
-function mergeLeadsMaps(
-  map1: { [key: string]: any[] },
-  map2: { [key: string]: any[] }
-) {
-  const mergedMap: { [key: string]: any[] } = { ...map1 };
-
-  for (const key in map2) {
-    if (mergedMap[key]) {
-      mergedMap[key] = [...mergedMap[key], ...map2[key]];
-    } else {
-      mergedMap[key] = map2[key];
-    }
-  }
-
-  return mergedMap;
-}
-
 async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
   for (const contractorId in contractorLeadsMap) {
     await delay(1000);
@@ -384,9 +354,9 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       if (leads.length === 0) continue;
 
       // --- Duplicate billing protection ---
-      // Mark leads as APPOINTMENT_COMPLETED *before* charging so a concurrent run won't pick them up.
-      // If the charge fails we revert them back to APPOINTMENT_SCHEDULED.
-      await updateHubspotLeads(leads, 'APPOINTMENT_COMPLETED');
+      // Temporarily mark leads as BILLING_PENDING so a concurrent run won't pick them up.
+      // After billing (success or fail), always restore to NEW_LEAD.
+      await updateHubspotLeads(leads, 'BILLING_PENDING');
 
       const cost = leads.length * contractor.pricePerLead;
       const leadIds = leads.map((l: any) => l.id);
@@ -411,17 +381,19 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
 
         if (payment.status !== 'succeeded') {
           console.error("Payment didn't process:", payment.status);
-          // Revert leads so they get picked up on the next run
-          await updateHubspotLeads(leads, 'APPOINTMENT_SCHEDULED');
+          // Restore to NEW_LEAD so they get picked up on the next run
+          await updateHubspotLeads(leads, 'NEW_LEAD');
           continue;
         }
 
+        // Billing succeeded — restore to NEW_LEAD (user manages pipeline manually)
+        await updateHubspotLeads(leads, 'NEW_LEAD');
         console.log(
           `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
         );
       } catch (chargeError) {
-        console.error('Charge failed, reverting leads to APPOINTMENT_SCHEDULED:', chargeError);
-        await updateHubspotLeads(leads, 'APPOINTMENT_SCHEDULED');
+        console.error('Charge failed, reverting leads to NEW_LEAD:', chargeError);
+        await updateHubspotLeads(leads, 'NEW_LEAD');
       }
     } catch (error) {
       console.error('Error charging contractor:', error);
@@ -482,7 +454,7 @@ async function sendEmail(contractor: any, leads: any[]) {
   });
 }
 
-async function updateHubspotLeads(leads: any[], status: string = 'APPOINTMENT_COMPLETED') {
+async function updateHubspotLeads(leads: any[], status: string = 'NEW_LEAD') {
   const updateRequests = leads.map((lead) => ({
     id: lead.id,
     properties: { hs_lead_status: status },
