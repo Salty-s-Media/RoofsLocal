@@ -38,12 +38,22 @@ export default async function handler(
     return res.status(400).json({ error: `Invalid status. Allowed: ${VALID_STATUSES.join(", ")}` });
   }
 
+  // Enforce revenue constraints at the API boundary
+  if (status === "SOLD" && (revenue === undefined || revenue === null || revenue <= 0)) {
+    // When setting status to SOLD, a positive revenue value MUST be included
+    return res.status(400).json({ error: "Revenue must be greater than 0 when status is SOLD" });
+  }
+
+  if (status && status !== "SOLD" && revenue !== undefined && revenue !== null && revenue > 0) {
+    return res.status(400).json({ error: "Revenue must be 0 when status is not SOLD" });
+  }
+
   const properties: Record<string, string> = {};
 
   if (status) {
     properties.hs_lead_status = status;
-    // If changing to any status other than SOLD, reset revenue to 0
     if (status !== "SOLD") {
+      // Non-SOLD statuses always have revenue = 0
       properties.lead_revenue = "0";
     }
   }
