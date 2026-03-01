@@ -543,18 +543,58 @@ export default function Dashboard() {
   /* ---- KPIs (computed from filteredLeads) ---- */
   const moneySpent = filteredLeads.length * pricePerLead;
   const soldLeads = filteredLeads.filter((l) => l.status === 'SOLD');
-  const appointmentCompletedLeads = filteredLeads.filter((l) => l.status === 'APPOINTMENT_COMPLETED');
   const totalRevenue = soldLeads.reduce((s, l) => s + (l.revenue ?? 0), 0);
   const roi = moneySpent > 0 ? (totalRevenue / moneySpent).toFixed(1) : '0.0';
-  const closeRate = appointmentCompletedLeads.length > 0
-    ? ((soldLeads.length / appointmentCompletedLeads.length) * 100).toFixed(1)
-    : '0.0';
   const leadToSale = filteredLeads.length > 0
     ? ((soldLeads.length / filteredLeads.length) * 100).toFixed(1)
     : '0.0';
 
-  const handleFilter = () => { setActiveFrom(fromDate); setActiveTo(toDate); };
-  const handleReset = () => { const d = defaultRange(); setFromDate(d.from); setToDate(d.to); setActiveFrom(d.from); setActiveTo(d.to); };
+  /* ---- Funnel counts ---- */
+  const funnelStages = useMemo(() => {
+    const total = filteredLeads.length;
+    return STATUS_KEYS.map((key) => {
+      const count = filteredLeads.filter((l) => l.status === key).length;
+      const pct = total > 0 ? (count / total) * 100 : 0;
+      return { key, count, pct };
+    });
+  }, [filteredLeads]);
+
+  const apptCompletedCount = funnelStages.find((s) => s.key === 'APPOINTMENT_COMPLETED')?.count ?? 0;
+  const soldCount = funnelStages.find((s) => s.key === 'SOLD')?.count ?? 0;
+  const salesConversion = apptCompletedCount > 0
+    ? ((soldCount / apptCompletedCount) * 100).toFixed(1)
+    : null;
+
+  /* ---- Date range helpers ---- */
+  const applyRange = useCallback((from: string, to: string) => {
+    setFromDate(from); setToDate(to); setActiveFrom(from); setActiveTo(to);
+  }, []);
+
+  const quickRanges: { label: string; getRange: () => { from: string; to: string } }[] = useMemo(() => {
+    const today = new Date();
+    const todayStr = toDateInputValue(today);
+    return [
+      { label: 'Today', getRange: () => ({ from: todayStr, to: todayStr }) },
+      { label: 'Last 7 Days', getRange: () => { const f = new Date(); f.setDate(f.getDate() - 7); return { from: toDateInputValue(f), to: todayStr }; } },
+      { label: 'Last 30 Days', getRange: () => { const f = new Date(); f.setDate(f.getDate() - 30); return { from: toDateInputValue(f), to: todayStr }; } },
+      { label: 'This Month', getRange: () => ({ from: toDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1)), to: todayStr }) },
+      { label: 'Last Month', getRange: () => { const s = new Date(today.getFullYear(), today.getMonth() - 1, 1); const e = new Date(today.getFullYear(), today.getMonth(), 0); return { from: toDateInputValue(s), to: toDateInputValue(e) }; } },
+      { label: 'Year to Date', getRange: () => ({ from: toDateInputValue(new Date(today.getFullYear(), 0, 1)), to: todayStr }) },
+      { label: 'All Time', getRange: () => ({ from: '', to: '' }) },
+    ];
+  }, []);
+
+  const [activeRangeLabel, setActiveRangeLabel] = useState('Last 30 Days');
+
+  const handleQuickRange = useCallback((label: string, from: string, to: string) => {
+    setActiveRangeLabel(label);
+    applyRange(from, to);
+  }, [applyRange]);
+
+  const handleManualDateChange = useCallback((from: string, to: string) => {
+    setActiveRangeLabel('');
+    applyRange(from, to);
+  }, [applyRange]);
 
   const toggleStatusFilter = useCallback((status: string) => {
     setSelectedStatuses((prev) =>
@@ -707,31 +747,83 @@ export default function Dashboard() {
           <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 4px 0' }}>Welcome, {user.firstName} {user.lastName}</h1>
         </div>
 
-        {/* ======== KPI CARDS ======== */}
-        <div style={{ display: 'flex', gap: 20, marginTop: -20, marginBottom: 24, flexWrap: 'wrap' }}>
-          <KpiCard label="Money Spent" value={fmt(moneySpent)} subtitle={`${filteredLeads.length} leads × ${fmt(pricePerLead)}/lead`} accentColor="#ef4444" />
-          <KpiCard label="Total Revenue" value={fmt(totalRevenue)} subtitle={`${soldLeads.length} sold jobs`} accentColor="#22c55e" />
-          <KpiCard label="ROI" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
-          <KpiCard label="Close Rate" value={`${closeRate}%`} subtitle={`${soldLeads.length} sold ÷ ${appointmentCompletedLeads.length} appts completed`} accentColor="#7e22ce" />
-          <KpiCard label="Lead to Sale" value={`${leadToSale}%`} subtitle={`${soldLeads.length} sold ÷ ${filteredLeads.length} total leads`} accentColor="#c2410c" />
+        {/* ======== DATE FILTER ======== */}
+        <div style={{ ...cardStyle, marginBottom: 24, padding: '16px 28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            {quickRanges.map((qr) => {
+              const active = activeRangeLabel === qr.label;
+              return (
+                <button key={qr.label} onClick={() => { const r = qr.getRange(); handleQuickRange(qr.label, r.from, r.to); }}
+                  style={{
+                    padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: active ? '1.5px solid #4338ca' : '1px solid #e2e8f0',
+                    background: active ? '#eef2ff' : '#fff',
+                    color: active ? '#4338ca' : '#64748b',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#f8fafc'; }}
+                  onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = '#fff'; }}>
+                  {qr.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>From:</label>
+              <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); handleManualDateChange(e.target.value, toDate); }} style={{ ...inputSt, width: 'auto', padding: '6px 10px', fontSize: 13 }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>To:</label>
+              <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); handleManualDateChange(fromDate, e.target.value); }} style={{ ...inputSt, width: 'auto', padding: '6px 10px', fontSize: 13 }} />
+            </div>
+          </div>
         </div>
 
-        {/* ======== DATE FILTER ======== */}
-        <div style={{ ...cardStyle, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '20px 28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>From:</label>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ ...inputSt, width: 'auto' }} />
+        {/* ======== KPI CARDS ======== */}
+        <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+          <KpiCard label="Total Leads" value={String(filteredLeads.length)} subtitle={`${fmt(pricePerLead)}/lead`} accentColor="#475569" />
+          <KpiCard label="Ad Spend" value={fmt(moneySpent)} subtitle={`${filteredLeads.length} leads`} accentColor="#ef4444" />
+          <KpiCard label="Revenue" value={fmt(totalRevenue)} subtitle={`${soldLeads.length} sold jobs`} accentColor="#22c55e" />
+          <KpiCard label="ROI" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
+        </div>
+
+        {/* ======== VISUAL SALES FUNNEL ======== */}
+        <div style={{ ...cardStyle, marginBottom: 24, padding: '24px 28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: 0 }}>Sales Pipeline</h2>
+            {salesConversion !== null && (
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#15803d', background: '#f0fdf4', border: '1px solid #86efac', padding: '4px 12px', borderRadius: 6 }}>
+                Sales Conversion: {salesConversion}%
+              </span>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>To:</label>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ ...inputSt, width: 'auto' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {funnelStages.map((stage) => {
+              const cfg = STATUS_OPTIONS[stage.key];
+              const barWidth = Math.max(stage.pct, 2);
+              return (
+                <div key={stage.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 160, flexShrink: 0, fontSize: 13, fontWeight: 600, color: cfg.text }}>{cfg.label}</div>
+                  <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 6, height: 28, position: 'relative', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${barWidth}%`, height: '100%', borderRadius: 6,
+                      background: cfg.border, transition: 'width 0.4s ease',
+                      display: 'flex', alignItems: 'center', paddingLeft: 10,
+                    }}>
+                      {stage.pct > 8 && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{stage.pct.toFixed(0)}%</span>
+                      )}
+                    </div>
+                    {stage.pct <= 8 && stage.count > 0 && (
+                      <span style={{ position: 'absolute', left: `calc(${barWidth}% + 8px)`, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 600, color: '#94a3b8' }}>{stage.pct.toFixed(0)}%</span>
+                    )}
+                  </div>
+                  <div style={{ width: 48, textAlign: 'right', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{stage.count}</div>
+                </div>
+              );
+            })}
           </div>
-          <button onClick={handleFilter} style={{ ...primaryBtn, marginTop: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Filter</button>
-          <button onClick={handleReset} style={{ ...secondaryBtn, marginTop: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#475569')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#64748b')}>Reset</button>
         </div>
 
         {/* ======== STATUS FILTER CHIPS ======== */}
