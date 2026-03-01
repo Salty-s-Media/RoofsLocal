@@ -49,3 +49,21 @@ model Contractor {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+enum LeadStatus {
+  NEW_LEAD
+  APPT_SCHEDULED
+  APPT_COMPLETED
+  NOT_SOLD
+  SOLD
+  DEAD
+}
+
+model LeadStatusOverride {
+  contactId    String     @id          // HubSpot contact ID
+  contractorId String
+  status       LeadStatus @default(NEW_LEAD)
+  updatedAt    DateTime   @updatedAt
+
+  @@index([contractorId])
+}

@@ -45,17 +45,23 @@ interface LeadsApiResponse {
   leads: Lead[];
 }
 
+type StatusOverrides = Record<string, string>;
+
 /* ------------------------------------------------------------------ */
 /*  Status config                                                      */
 /* ------------------------------------------------------------------ */
 
-const STATUS_OPTIONS: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  OPEN: { label: 'OPEN', bg: '#faf5ff', text: '#7e22ce', border: '#c084fc' },
-  IN_PROGRESS: { label: 'IN PROGRESS', bg: '#eff6ff', text: '#1e40af', border: '#93c5fd' },
-  CONNECTED: { label: 'CONNECTED', bg: '#f0fdf4', text: '#15803d', border: '#86efac' },
+const STATUS_OPTIONS: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  NEW_LEAD:       { label: 'NEW LEAD',       color: '#4338ca', bg: '#eef2ff', border: '#a5b4fc' },
+  APPT_SCHEDULED: { label: 'APPT SCHEDULED', color: '#0369a1', bg: '#e0f2fe', border: '#7dd3fc' },
+  APPT_COMPLETED: { label: 'APPT COMPLETED', color: '#7e22ce', bg: '#faf5ff', border: '#c4b5fd' },
+  NOT_SOLD:       { label: 'NOT SOLD',       color: '#c2410c', bg: '#fff7ed', border: '#fdba74' },
+  SOLD:           { label: 'SOLD',           color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+  DEAD:           { label: 'DEAD',           color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
 };
 
-const DEFAULT_BADGE = { label: 'UNKNOWN', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+const STATUS_KEYS = Object.keys(STATUS_OPTIONS);
+const DEFAULT_BADGE = { label: 'UNKNOWN', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' };
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -75,6 +81,56 @@ function defaultRange() {
   from.setDate(from.getDate() - 30);
   return { from: toDateInputValue(from), to: toDateInputValue(to) };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Date-range presets                                                 */
+/* ------------------------------------------------------------------ */
+
+type PresetKey = 'today' | '7d' | '30d' | 'this_month' | 'last_month' | 'ytd' | 'all';
+
+function computePreset(key: PresetKey): { from: string; to: string } {
+  const now = new Date();
+  const to = toDateInputValue(now);
+  switch (key) {
+    case 'today':
+      return { from: to, to };
+    case '7d': {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      return { from: toDateInputValue(d), to };
+    }
+    case '30d': {
+      const d = new Date(); d.setDate(d.getDate() - 30);
+      return { from: toDateInputValue(d), to };
+    }
+    case 'this_month': {
+      const d = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: toDateInputValue(d), to };
+    }
+    case 'last_month': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: toDateInputValue(start), to: toDateInputValue(end) };
+    }
+    case 'ytd': {
+      const d = new Date(now.getFullYear(), 0, 1);
+      return { from: toDateInputValue(d), to };
+    }
+    case 'all':
+      return { from: '2020-01-01', to };
+    default:
+      return defaultRange();
+  }
+}
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: '7d', label: 'Last 7 Days' },
+  { key: '30d', label: 'Last 30 Days' },
+  { key: 'this_month', label: 'This Month' },
+  { key: 'last_month', label: 'Last Month' },
+  { key: 'ytd', label: 'Year to Date' },
+  { key: 'all', label: 'All Time' },
+];
 
 /* ------------------------------------------------------------------ */
 /*  Shared styles                                                      */
@@ -118,9 +174,9 @@ function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_OPTIONS[status] || DEFAULT_BADGE;
   return (
     <span style={{
-      display: 'inline-block', padding: '4px 10px', borderRadius: 6,
+      display: 'inline-block', padding: '4px 12px', borderRadius: 6,
       fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
-      background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}`, whiteSpace: 'nowrap',
+      background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, whiteSpace: 'nowrap',
     }}>{cfg.label}</span>
   );
 }
@@ -134,10 +190,10 @@ function StatusDropdown({ currentStatus, onUpdate, onClose }: {
       background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
       border: '1px solid #e2e8f0', zIndex: 50, minWidth: 200, padding: '6px 0',
     }}>
-      {Object.keys(STATUS_OPTIONS).map((s) => (
+      {STATUS_KEYS.map((s) => (
         <button key={s} onClick={() => { onUpdate(s); onClose(); }} style={{
           display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-          padding: '8px 14px', border: 'none',
+          padding: '10px 14px', border: 'none',
           background: s === currentStatus ? '#f1f5f9' : 'transparent',
           cursor: 'pointer', fontSize: 13, textAlign: 'left',
         }}
@@ -157,10 +213,10 @@ function KpiCard({ label, value, subtitle, accentColor }: {
     <div style={{
       background: '#fff', borderRadius: 12, padding: '24px 28px',
       borderLeft: `4px solid ${accentColor}`,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', flex: 1, minWidth: 220,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', flex: 1, minWidth: 180,
     }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: accentColor, textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{value}</div>
       <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }}>{subtitle}</div>
     </div>
   );
@@ -175,18 +231,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RevenueCell({ lead, onSave }: { lead: Lead; onSave: (id: string, rev: number) => void }) {
+function RevenueCell({ lead, onSave, defaultRevenue }: { lead: Lead; onSave: (id: string, rev: number) => void; defaultRevenue: number }) {
+  const rev = lead.revenue ?? defaultRevenue;
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(String(lead.revenue ?? 500));
-
-  if (lead.status !== 'CONNECTED') {
-    return <span style={{ color: '#cbd5e1', fontWeight: 700 }}>—</span>;
-  }
+  const [value, setValue] = useState(String(rev));
 
   if (!editing) {
     return (
       <button
-        onClick={() => { setValue(String(lead.revenue ?? 500)); setEditing(true); }}
+        onClick={() => { setValue(String(rev)); setEditing(true); }}
         title="Click to edit revenue"
         style={{
           background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700,
@@ -194,7 +247,7 @@ function RevenueCell({ lead, onSave }: { lead: Lead; onSave: (id: string, rev: n
           borderBottom: '1px dashed #94a3b8',
         }}
       >
-        {fmt(lead.revenue ?? 500)}
+        {fmt(rev)}
       </button>
     );
   }
@@ -253,6 +306,58 @@ function ConfirmPrompt({ prompt, onConfirm, onCancel, danger = false }: {
         <button onClick={onCancel} style={{ ...secondaryBtn, marginTop: 0 }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>No</button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sales Pipeline                                                     */
+/* ------------------------------------------------------------------ */
+
+function SalesPipeline({ leads }: { leads: Lead[] }) {
+  const total = leads.length || 1;
+  const counts: Record<string, number> = {};
+  for (const k of STATUS_KEYS) counts[k] = 0;
+  for (const l of leads) {
+    if (counts[l.status] !== undefined) counts[l.status]++;
+    else counts[l.status] = (counts[l.status] || 0) + 1;
+  }
+
+  return (
+    <div style={{ ...cardStyle, marginBottom: 24 }}>
+      <h2 style={{ ...sectionTitle, marginBottom: 16 }}>Sales Pipeline</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {STATUS_KEYS.map((key) => {
+          const cfg = STATUS_OPTIONS[key];
+          const count = counts[key] || 0;
+          const pct = (count / total) * 100;
+          return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 130, fontSize: 12, fontWeight: 700, color: cfg.color, letterSpacing: '0.03em', flexShrink: 0 }}>
+                {cfg.label}
+              </div>
+              <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 6, height: 24, position: 'relative', overflow: 'hidden' }}>
+                {count > 0 && (
+                  <div style={{
+                    height: '100%', borderRadius: 6,
+                    background: cfg.color, opacity: 0.7,
+                    width: `${Math.max(pct, 2)}%`,
+                    display: 'flex', alignItems: 'center', paddingLeft: 8,
+                    transition: 'width 0.3s ease',
+                  }}>
+                    {pct >= 8 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>{Math.round(pct)}%</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div style={{ width: 28, textAlign: 'right', fontSize: 14, fontWeight: 700, color: '#334155', flexShrink: 0 }}>
+                {count}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -356,11 +461,48 @@ export default function Dashboard() {
   const [toDate, setToDate] = useState(defaultTo);
   const [activeFrom, setActiveFrom] = useState(defaultFrom);
   const [activeTo, setActiveTo] = useState(defaultTo);
+  const [activePreset, setActivePreset] = useState<PresetKey>('30d');
 
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const [zipToast, setZipToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [delZipToast, setDelZipToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  /* ---- Ephemeral status overrides ---- */
+  const [statusOverrides, setStatusOverrides] = useState<StatusOverrides>({});
+
+  /* ---- Fetch status overrides from DB ---- */
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const r = await fetch(`/api/user/leads/status-override?contractorId=${user.id}`);
+        if (r.ok) setStatusOverrides(await r.json());
+      } catch (e) { console.error(e); }
+    })();
+  }, [user?.id]);
+
+  /** Merge API leads with localStorage status overrides */
+  const mergedLeads = useMemo(() => {
+    return leads.map((l) => {
+      const override = statusOverrides[l.id];
+      if (override) {
+        return { ...l, status: override };
+      }
+      // Default to NEW_LEAD if the HubSpot status doesn't match our enum
+      if (!STATUS_OPTIONS[l.status]) {
+        return { ...l, status: 'NEW_LEAD' };
+      }
+      return l;
+    });
+  }, [leads, statusOverrides]);
+
+  /** Visible leads after status filter */
+  const filteredLeads = useMemo(() => {
+    if (!statusFilter) return mergedLeads;
+    return mergedLeads.filter((l) => l.status === statusFilter);
+  }, [mergedLeads, statusFilter]);
 
   /* ---- Auth ---- */
   useEffect(() => {
@@ -392,22 +534,40 @@ export default function Dashboard() {
 
   useEffect(() => { if (user?.id) fetchLeads(activeFrom, activeTo); }, [user?.id, activeFrom, activeTo, fetchLeads]);
 
-  /* ---- KPIs ---- */
-  const moneySpent = leads.length * pricePerLead;
-  const connectedLeads = leads.filter((l) => l.status === 'CONNECTED');
-  const totalRevenue = connectedLeads.reduce((s, l) => s + (l.revenue ?? 0), 0);
-  const roi = moneySpent > 0 ? (totalRevenue / moneySpent).toFixed(1) : '0.0';
+  /* ---- KPIs (computed from merged leads) ---- */
+  const defaultRevenue = pricePerLead;
+  const adSpend = mergedLeads.length * pricePerLead;
+  const totalRevenue = mergedLeads.reduce((s, l) => s + (l.revenue ?? defaultRevenue), 0);
+  const roi = adSpend > 0 ? (totalRevenue / adSpend).toFixed(1) : '0.0';
 
-  const handleFilter = () => { setActiveFrom(fromDate); setActiveTo(toDate); };
-  const handleReset = () => { const d = defaultRange(); setFromDate(d.from); setToDate(d.to); setActiveFrom(d.from); setActiveTo(d.to); };
+  /* ---- Preset handler ---- */
+  const handlePreset = (key: PresetKey) => {
+    setActivePreset(key);
+    const { from, to } = computePreset(key);
+    setFromDate(from); setToDate(to);
+    setActiveFrom(from); setActiveTo(to);
+  };
 
+  const handleFilter = () => { setActivePreset(null as any); setActiveFrom(fromDate); setActiveTo(toDate); };
+
+  /* ---- Status update (persisted via DB) ---- */
   const updateStatus = useCallback(async (leadId: string, newStatus: string) => {
-    setLeads((p) => p.map((l) => l.id === leadId ? { ...l, status: newStatus, revenue: newStatus === 'CONNECTED' ? (l.revenue ?? 500) : null } : l));
+    // Optimistic update
+    setStatusOverrides((prev) => ({ ...prev, [leadId]: newStatus }));
     try {
-      await fetch('/api/user/leads/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactId: leadId, status: newStatus }) });
+      await fetch('/api/user/leads/status-override', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId: leadId,
+          contractorId: user.id,
+          status: newStatus,
+        }),
+      });
     } catch (e) { console.error(e); }
-  }, []);
+  }, [user?.id]);
 
+  /* ---- Revenue update (still persisted via API) ---- */
   const updateRevenue = useCallback(async (leadId: string, newRevenue: number) => {
     setLeads((p) => p.map((l) => l.id === leadId ? { ...l, revenue: newRevenue } : l));
     try {
@@ -495,6 +655,21 @@ export default function Dashboard() {
   /*  RENDER                                                           */
   /* ================================================================ */
 
+  const presetBtnBase: React.CSSProperties = {
+    padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', transition: 'all 0.15s', border: '1px solid #e2e8f0',
+    background: '#fff', color: '#475569',
+  };
+  const presetBtnActive: React.CSSProperties = {
+    ...presetBtnBase, background: '#4338ca', color: '#fff', borderColor: '#4338ca',
+  };
+
+  const statusPillBase: React.CSSProperties = {
+    padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+    cursor: 'pointer', transition: 'all 0.15s', border: '1px solid #e2e8f0',
+    background: '#fff', color: '#64748b',
+  };
+
   return (
     <div className='mt-[90px]' style={{ minHeight: '100vh', background: '#f4f6fa' }}>
       <style>{`
@@ -509,29 +684,65 @@ export default function Dashboard() {
           <h1 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 4px 0' }}>Welcome, {user.firstName} {user.lastName}</h1>
         </div>
 
-        {/* ======== KPI CARDS ======== */}
-        <div style={{ display: 'flex', gap: 20, marginTop: -20, marginBottom: 24, flexWrap: 'wrap' }}>
-          <KpiCard label="Money Spent" value={fmt(moneySpent)} subtitle={`${leads.length} leads × ${fmt(pricePerLead)}/lead`} accentColor="#ef4444" />
-          <KpiCard label="Total Revenue" value={fmt(totalRevenue)} subtitle={`${connectedLeads.length} connected jobs. (Edit Revenue to Update)`} accentColor="#22c55e" />
-          <KpiCard label="Return on Investment" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
+        {/* ======== DATE FILTER — Preset buttons + From/To ======== */}
+        <div style={{ ...cardStyle, marginBottom: 24, padding: '20px 28px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            {PRESETS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => handlePreset(p.key)}
+                style={activePreset === p.key ? presetBtnActive : presetBtnBase}
+                onMouseEnter={(e) => { if (activePreset !== p.key) e.currentTarget.style.background = '#f8fafc'; }}
+                onMouseLeave={(e) => { if (activePreset !== p.key) e.currentTarget.style.background = '#fff'; }}
+              >{p.label}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>From:</label>
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ ...inputSt, width: 'auto' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>To:</label>
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ ...inputSt, width: 'auto' }} />
+            </div>
+            <button onClick={handleFilter} style={{ ...primaryBtn, marginTop: 0, padding: '8px 20px' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Filter</button>
+          </div>
         </div>
 
-        {/* ======== DATE FILTER ======== */}
-        <div style={{ ...cardStyle, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '20px 28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>From:</label>
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ ...inputSt, width: 'auto' }} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>To:</label>
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ ...inputSt, width: 'auto' }} />
-          </div>
-          <button onClick={handleFilter} style={{ ...primaryBtn, marginTop: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Filter</button>
-          <button onClick={handleReset} style={{ ...secondaryBtn, marginTop: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#475569')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#64748b')}>Reset</button>
+        {/* ======== KPI CARDS ======== */}
+        <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+          <KpiCard label="Total Leads" value={String(mergedLeads.length)} subtitle={`${fmt(pricePerLead)}/lead`} accentColor="#4338ca" />
+          <KpiCard label="Ad Spend" value={fmt(adSpend)} subtitle={`${mergedLeads.length} leads`} accentColor="#ef4444" />
+          <KpiCard label="Revenue" value={fmt(totalRevenue)} subtitle={`${mergedLeads.length} leads @ ${fmt(defaultRevenue)} default`} accentColor="#22c55e" />
+          <KpiCard label="ROI" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
+        </div>
+
+        {/* ======== SALES PIPELINE ======== */}
+        <SalesPipeline leads={mergedLeads} />
+
+        {/* ======== STATUS FILTER PILLS ======== */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginRight: 4 }}>Status:</span>
+          <button
+            onClick={() => setStatusFilter(null)}
+            style={statusFilter === null ? { ...statusPillBase, background: '#4338ca', color: '#fff', borderColor: '#4338ca' } : statusPillBase}
+          >All</button>
+          {STATUS_KEYS.map((key) => {
+            const cfg = STATUS_OPTIONS[key];
+            const isActive = statusFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(isActive ? null : key)}
+                style={isActive ? { ...statusPillBase, background: cfg.bg, color: cfg.color, borderColor: cfg.border } : statusPillBase}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = '#f8fafc'; }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = '#fff'; }}
+              >{cfg.label}</button>
+            );
+          })}
         </div>
 
         {/* ======== LEADS TABLE ======== */}
@@ -550,13 +761,13 @@ export default function Dashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                    {['Date', 'Name', 'Phone', 'Email', 'Address', 'Status', 'Revenue', 'Actions'].map((h) => (
+                    {['Date', 'Name', 'Phone', 'Email', 'Address', 'Status', 'Revenue'].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {leads.map((lead) => (
+                  {filteredLeads.map((lead) => (
                     <tr key={lead.id} style={{ borderBottom: '1px solid #f1f5f9' }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#fafbfd')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
@@ -565,23 +776,22 @@ export default function Dashboard() {
                       <td style={{ padding: 16, color: '#334155', whiteSpace: 'nowrap' }}>{lead.phone}</td>
                       <td style={{ padding: 16, color: '#334155' }}>{lead.email}</td>
                       <td style={{ padding: 16, color: '#334155' }}>{[lead.streetAddress, lead.city, lead.zipCode].filter(Boolean).join(', ')}</td>
-                      <td style={{ padding: 16 }}><StatusBadge status={lead.status} /></td>
-                      <td style={{ padding: 16 }}>
-                        <RevenueCell lead={lead} onSave={updateRevenue} />
-                      </td>
                       <td style={{ padding: 16, position: 'relative' }}>
                         <button onClick={() => setOpenDropdown(openDropdown === lead.id ? null : lead.id)}
-                          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Update Status
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                          <StatusBadge status={lead.status} />
                         </button>
                         {openDropdown === lead.id && (
                           <StatusDropdown currentStatus={lead.status} onUpdate={(s) => updateStatus(lead.id, s)} onClose={() => setOpenDropdown(null)} />
                         )}
                       </td>
+                      <td style={{ padding: 16 }}>
+                        <RevenueCell lead={lead} onSave={updateRevenue} defaultRevenue={defaultRevenue} />
+                      </td>
                     </tr>
                   ))}
-                  {leads.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: 48, textAlign: 'center', color: '#94a3b8', fontSize: 15 }}>No leads found for the selected date range.</td></tr>
+                  {filteredLeads.length === 0 && (
+                    <tr><td colSpan={7} style={{ padding: 48, textAlign: 'center', color: '#94a3b8', fontSize: 15 }}>No leads found for the selected filters.</td></tr>
                   )}
                 </tbody>
               </table>
