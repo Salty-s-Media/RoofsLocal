@@ -181,14 +181,78 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function StatusDropdown({ currentStatus, onUpdate, onClose }: {
-  currentStatus: string; onUpdate: (s: string) => void; onClose: () => void;
+function RevenuePromptModal({ leadId, defaultRevenue, onConfirm, onCancel }: {
+  leadId: string; defaultRevenue: number;
+  onConfirm: (leadId: string, revenue: number) => void;
+  onCancel: () => void;
 }) {
+  const [value, setValue] = useState(String(defaultRevenue));
+  const handleSubmit = () => {
+    const num = parseFloat(value);
+    if (!isNaN(num) && num >= 0) onConfirm(leadId, num);
+  };
   return (
     <div style={{
-      position: 'absolute', right: 0, top: '100%', marginTop: 4,
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(0,0,0,0.4)', display: 'flex',
+      justifyContent: 'center', alignItems: 'center',
+    }} onClick={onCancel}>
+      <div style={{
+        background: '#fff', borderRadius: 12, padding: '28px 32px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', minWidth: 340,
+      }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>Mark as Sold</h3>
+        <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px 0' }}>Enter the revenue for this job before confirming.</p>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Revenue ($)</label>
+        <input
+          autoFocus type="number" min="0" step="1" value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel(); }}
+          style={{
+            width: '100%', padding: '10px 14px', borderRadius: 8,
+            border: '1px solid #e2e8f0', fontSize: 16, fontWeight: 700,
+            color: '#0f172a', outline: 'none',
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = '#15803d')}
+          onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')}
+        />
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={handleSubmit} style={{
+            ...primaryBtn, marginTop: 0, background: '#15803d', flex: 1,
+          }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#166534')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#15803d')}>Confirm Sold</button>
+          <button onClick={onCancel} style={{ ...secondaryBtn, marginTop: 0, flex: 1 }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusDropdown({ currentStatus, onUpdate, onClose, anchorRect }: {
+  currentStatus: string; onUpdate: (s: string) => void; onClose: () => void;
+  anchorRect: DOMRect;
+}) {
+  const dropdownHeight = STATUS_KEYS.length * 42 + 12;
+  const spaceBelow = window.innerHeight - anchorRect.bottom;
+  const openUp = spaceBelow < dropdownHeight && anchorRect.top > dropdownHeight;
+
+  const posStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: anchorRect.left,
+    ...(openUp
+      ? { bottom: window.innerHeight - anchorRect.top + 4 }
+      : { top: anchorRect.bottom + 4 }),
+    zIndex: 9999,
+  };
+
+  return (
+    <div style={{
+      ...posStyle,
       background: '#fff', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-      border: '1px solid #e2e8f0', zIndex: 50, minWidth: 200, padding: '6px 0',
+      border: '1px solid #e2e8f0', minWidth: 200, padding: '6px 0',
     }}>
       {STATUS_KEYS.map((s) => (
         <button key={s} onClick={() => { onUpdate(s); onClose(); }} style={{
@@ -233,18 +297,20 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function RevenueCell({ lead, onSave, defaultRevenue }: { lead: Lead; onSave: (id: string, rev: number) => void; defaultRevenue: number }) {
   const rev = lead.revenue ?? defaultRevenue;
+  const isSold = lead.status === 'SOLD';
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(rev));
 
   if (!editing) {
     return (
       <button
-        onClick={() => { setValue(String(rev)); setEditing(true); }}
-        title="Click to edit revenue"
+        onClick={() => { if (isSold) { setValue(String(rev)); setEditing(true); } }}
+        title={isSold ? 'Click to edit revenue' : 'Mark as Sold to set revenue'}
         style={{
-          background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700,
-          color: '#0f172a', fontSize: 14, padding: 0,
-          borderBottom: '1px dashed #94a3b8',
+          background: 'none', border: 'none', fontWeight: 700,
+          color: isSold ? '#0f172a' : '#94a3b8', fontSize: 14, padding: 0,
+          cursor: isSold ? 'pointer' : 'default',
+          borderBottom: isSold ? '1px dashed #94a3b8' : 'none',
         }}
       >
         {fmt(rev)}
@@ -469,6 +535,12 @@ export default function Dashboard() {
   const [zipToast, setZipToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [delZipToast, setDelZipToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
+  const [revenuePromptLeadId, setRevenuePromptLeadId] = useState<string | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   /* ---- Ephemeral status overrides ---- */
   const [statusOverrides, setStatusOverrides] = useState<StatusOverrides>({});
 
@@ -498,11 +570,19 @@ export default function Dashboard() {
     });
   }, [leads, statusOverrides]);
 
-  /** Visible leads after status filter */
   const filteredLeads = useMemo(() => {
     if (!statusFilter) return mergedLeads;
     return mergedLeads.filter((l) => l.status === statusFilter);
   }, [mergedLeads, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / rowsPerPage));
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredLeads.slice(start, start + rowsPerPage);
+  }, [filteredLeads, currentPage, rowsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, activeFrom, activeTo, rowsPerPage]);
 
   /* ---- Auth ---- */
   useEffect(() => {
@@ -535,9 +615,10 @@ export default function Dashboard() {
   useEffect(() => { if (user?.id) fetchLeads(activeFrom, activeTo); }, [user?.id, activeFrom, activeTo, fetchLeads]);
 
   /* ---- KPIs (computed from merged leads) ---- */
-  const defaultRevenue = pricePerLead;
+  const defaultRevenue = 0;
   const adSpend = mergedLeads.length * pricePerLead;
-  const totalRevenue = mergedLeads.reduce((s, l) => s + (l.revenue ?? defaultRevenue), 0);
+  const soldLeads = mergedLeads.filter((l) => l.status === 'SOLD');
+  const totalRevenue = soldLeads.reduce((s, l) => s + (l.revenue ?? defaultRevenue), 0);
   const roi = adSpend > 0 ? (totalRevenue / adSpend).toFixed(1) : '0.0';
 
   /* ---- Preset handler ---- */
@@ -552,6 +633,10 @@ export default function Dashboard() {
 
   /* ---- Status update (persisted via DB) ---- */
   const updateStatus = useCallback(async (leadId: string, newStatus: string) => {
+    if (newStatus === 'SOLD') {
+      setRevenuePromptLeadId(leadId);
+      return;
+    }
     // Optimistic update
     setStatusOverrides((prev) => ({ ...prev, [leadId]: newStatus }));
     try {
@@ -564,6 +649,26 @@ export default function Dashboard() {
           status: newStatus,
         }),
       });
+    } catch (e) { console.error(e); }
+  }, [user?.id]);
+
+  const confirmSoldWithRevenue = useCallback(async (leadId: string, revenue: number) => {
+    setStatusOverrides((prev) => ({ ...prev, [leadId]: 'SOLD' }));
+    setLeads((p) => p.map((l) => l.id === leadId ? { ...l, revenue } : l));
+    setRevenuePromptLeadId(null);
+    try {
+      await Promise.all([
+        fetch('/api/user/leads/status-override', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactId: leadId, contractorId: user.id, status: 'SOLD' }),
+        }),
+        fetch('/api/user/leads/status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactId: leadId, revenue }),
+        }),
+      ]);
     } catch (e) { console.error(e); }
   }, [user?.id]);
 
@@ -716,7 +821,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
           <KpiCard label="Total Leads" value={String(mergedLeads.length)} subtitle={`${fmt(pricePerLead)}/lead`} accentColor="#4338ca" />
           <KpiCard label="Ad Spend" value={fmt(adSpend)} subtitle={`${mergedLeads.length} leads`} accentColor="#ef4444" />
-          <KpiCard label="Revenue" value={fmt(totalRevenue)} subtitle={`${mergedLeads.length} leads @ ${fmt(defaultRevenue)} default`} accentColor="#22c55e" />
+          <KpiCard label="Revenue" value={fmt(totalRevenue)} subtitle={`${soldLeads.length} sold lead${soldLeads.length !== 1 ? 's' : ''}`} accentColor="#22c55e" />
           <KpiCard label="ROI" value={`${roi}x`} subtitle="Revenue ÷ Spend" accentColor="#3b82f6" />
         </div>
 
@@ -746,7 +851,7 @@ export default function Dashboard() {
         </div>
 
         {/* ======== LEADS TABLE ======== */}
-        <div style={{ ...cardStyle, overflow: 'hidden', marginBottom: 32, padding: 0 }}>
+        <div style={{ ...cardStyle, marginBottom: 32, padding: 0 }}>
           <div style={{ padding: '24px 28px 16px' }}>
             <h2 style={{ ...sectionTitle, marginBottom: 0 }}>Leads</h2>
           </div>
@@ -767,7 +872,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLeads.map((lead) => (
+                  {paginatedLeads.map((lead) => (
                     <tr key={lead.id} style={{ borderBottom: '1px solid #f1f5f9' }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#fafbfd')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
@@ -776,13 +881,22 @@ export default function Dashboard() {
                       <td style={{ padding: 16, color: '#334155', whiteSpace: 'nowrap' }}>{lead.phone}</td>
                       <td style={{ padding: 16, color: '#334155' }}>{lead.email}</td>
                       <td style={{ padding: 16, color: '#334155' }}>{[lead.streetAddress, lead.city, lead.zipCode].filter(Boolean).join(', ')}</td>
-                      <td style={{ padding: 16, position: 'relative' }}>
-                        <button onClick={() => setOpenDropdown(openDropdown === lead.id ? null : lead.id)}
+                      <td style={{ padding: 16 }}>
+                        <button
+                          onClick={(e) => {
+                            if (openDropdown === lead.id) {
+                              setOpenDropdown(null);
+                              setDropdownRect(null);
+                            } else {
+                              setDropdownRect(e.currentTarget.getBoundingClientRect());
+                              setOpenDropdown(lead.id);
+                            }
+                          }}
                           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
                           <StatusBadge status={lead.status} />
                         </button>
-                        {openDropdown === lead.id && (
-                          <StatusDropdown currentStatus={lead.status} onUpdate={(s) => updateStatus(lead.id, s)} onClose={() => setOpenDropdown(null)} />
+                        {openDropdown === lead.id && dropdownRect && (
+                          <StatusDropdown currentStatus={lead.status} onUpdate={(s) => updateStatus(lead.id, s)} onClose={() => { setOpenDropdown(null); setDropdownRect(null); }} anchorRect={dropdownRect} />
                         )}
                       </td>
                       <td style={{ padding: 16 }}>
@@ -790,15 +904,89 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ))}
-                  {filteredLeads.length === 0 && (
+                  {paginatedLeads.length === 0 && (
                     <tr><td colSpan={7} style={{ padding: 48, textAlign: 'center', color: '#94a3b8', fontSize: 15 }}>No leads found for the selected filters.</td></tr>
                   )}
                 </tbody>
               </table>
+              {/* Pagination Controls */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '16px 24px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 12, zIndex: 40,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+                  <span>Rows per page:</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    style={{
+                      padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0',
+                      fontSize: 13, color: '#334155', background: '#fff', cursor: 'pointer',
+                    }}
+                  >
+                    {[10, 25, 50, 100].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span style={{ marginLeft: 8 }}>
+                    {Math.min((currentPage - 1) * rowsPerPage + 1, filteredLeads.length)}–{Math.min(currentPage * rowsPerPage, filteredLeads.length)} of {filteredLeads.length}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0',
+                      background: '#fff', cursor: currentPage === 1 ? 'default' : 'pointer',
+                      color: currentPage === 1 ? '#cbd5e1' : '#334155', fontSize: 13, fontWeight: 600,
+                    }}
+                  >«</button>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0',
+                      background: '#fff', cursor: currentPage === 1 ? 'default' : 'pointer',
+                      color: currentPage === 1 ? '#cbd5e1' : '#334155', fontSize: 13, fontWeight: 600,
+                    }}
+                  >{`<`}</button>
+                  <span style={{ padding: '6px 12px', fontSize: 13, fontWeight: 600, color: '#334155' }}>
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0',
+                      background: '#fff', cursor: currentPage === totalPages ? 'default' : 'pointer',
+                      color: currentPage === totalPages ? '#cbd5e1' : '#334155', fontSize: 13, fontWeight: 600,
+                    }}
+                  >{`>`}</button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0',
+                      background: '#fff', cursor: currentPage === totalPages ? 'default' : 'pointer',
+                      color: currentPage === totalPages ? '#cbd5e1' : '#334155', fontSize: 13, fontWeight: 600,
+                    }}
+                  >»</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
         {openDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setOpenDropdown(null)} />}
+
+        {revenuePromptLeadId && (
+          <RevenuePromptModal
+            leadId={revenuePromptLeadId}
+            defaultRevenue={defaultRevenue}
+            onConfirm={confirmSoldWithRevenue}
+            onCancel={() => setRevenuePromptLeadId(null)}
+          />
+        )}
 
         {/* ======== ACCOUNT & SETTINGS ======== */}
         <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 20px 0' }}>Account &amp; Settings</h2>
