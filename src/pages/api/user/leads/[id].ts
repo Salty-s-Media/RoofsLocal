@@ -59,7 +59,7 @@ const LEAD_PROPERTIES = [
   "lead_revenue",
 ];
 
-const DEFAULT_REVENUE = 500;
+const DEFAULT_REVENUE = 0;
 
 /**
  * Maps a HubSpot contact to our lead shape.
