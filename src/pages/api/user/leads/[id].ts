@@ -64,11 +64,10 @@ const DEFAULT_REVENUE = 0;
 /**
  * Maps a HubSpot contact to our lead shape.
  * Revenue: uses lead_revenue from HubSpot if set, otherwise defaults to
- * $500 for CONNECTED leads (minimum assumed value).
+ * $0 for CONNECTED leads (minimum assumed value).
  */
 function mapContact(
-  contact: HubSpotContact,
-  pricePerLeadDollars: number
+  contact: HubSpotContact
 ): MappedLead {
   const status = contact.properties.hs_lead_status || "OPEN";
   const rawRevenue = contact.properties.lead_revenue;
@@ -182,7 +181,7 @@ async function fetchLeadsForCompany(
 
       const data: HubSpotSearchResponse = await hubspotResponse.json();
       allLeads.push(
-        ...data.results.map((c) => mapContact(c, pricePerLeadDollars))
+        ...data.results.map((c) => mapContact(c))
       );
       after = data.paging?.next?.after;
     } catch (error) {
