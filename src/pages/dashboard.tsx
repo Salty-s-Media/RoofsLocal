@@ -550,7 +550,9 @@ export default function Dashboard() {
     (async () => {
       try {
         const r = await fetch(`/api/user/leads/status-override?contractorId=${user.id}`);
-        if (r.ok) setStatusOverrides(await r.json());
+        const data = await r.json();
+        console.log('Loaded overrides:', data);
+        if (r.ok) setStatusOverrides(data);
       } catch (e) { console.error(e); }
     })();
   }, [user?.id]);
@@ -637,10 +639,9 @@ export default function Dashboard() {
       setRevenuePromptLeadId(leadId);
       return;
     }
-    // Optimistic update
     setStatusOverrides((prev) => ({ ...prev, [leadId]: newStatus }));
     try {
-      await fetch('/api/user/leads/status-override', {
+      const r = await fetch('/api/user/leads/status-override', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -649,7 +650,8 @@ export default function Dashboard() {
           status: newStatus,
         }),
       });
-    } catch (e) { console.error(e); }
+      console.log('PUT status:', r.status, await r.json());
+    } catch (e) { console.error('PUT failed:', e); }
   }, [user?.id]);
 
   const confirmSoldWithRevenue = useCallback(async (leadId: string, revenue: number) => {
