@@ -346,19 +346,6 @@ function RevenueCell({ lead, onSave, defaultRevenue }: { lead: Lead; onSave: (id
   );
 }
 
-function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
-  if (!message) return null;
-  const isSuccess = type === 'success';
-  return (
-    <div style={{
-      padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, marginTop: 12,
-      background: isSuccess ? '#f0fdf4' : '#fef2f2',
-      border: `1px solid ${isSuccess ? '#86efac' : '#fca5a5'}`,
-      color: isSuccess ? '#166534' : '#991b1b',
-    }}>{message}</div>
-  );
-}
-
 function ConfirmPrompt({ prompt, onConfirm, onCancel, danger = false }: {
   prompt: string; onConfirm: () => void; onCancel: () => void; danger?: boolean;
 }) {
@@ -433,78 +420,61 @@ function SalesPipeline({ leads }: { leads: Lead[] }) {
 /*  Inline BillingManagement                                           */
 /* ------------------------------------------------------------------ */
 
-function BillingManagement({ email }: { email: string }) {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [customerID, setCustomerId] = useState('');
-  const [isCancelling, setIsCancelling] = useState(false);
+// function BillingManagement({ email }: { email: string }) {
+//   const [isUpdating, setIsUpdating] = useState(false);
+//   const [customerID, setCustomerId] = useState('');
+//   const [isCancelling, setIsCancelling] = useState(false);
 
-  async function handleUpdateBilling() {
-    const req = await fetch(`/api/user/email/${email}`, { method: 'GET' });
-    if (!req.ok) return;
-    const res = await req.json();
-    const customerId = res.stripeId;
-    setCustomerId(customerId as string);
-    await fetch('/api/stripe/detach-payment-method', { method: 'POST', body: JSON.stringify({ customerId }) });
-    const req3 = await fetch('/api/stripe/create-update-session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerId }),
-    });
-    if (req3.status === 200) {
-      const data = await req3.json();
-      window.location.href = data.url as string;
-    }
-    setIsUpdating(false);
-  }
+//   async function handleUpdateBilling() {
+//     const req = await fetch(`/api/user/email/${email}`, { method: 'GET' });
+//     if (!req.ok) return;
+//     const res = await req.json();
+//     const customerId = res.stripeId;
+//     setCustomerId(customerId as string);
+//     await fetch('/api/stripe/detach-payment-method', { method: 'POST', body: JSON.stringify({ customerId }) });
+//     const req3 = await fetch('/api/stripe/create-update-session', {
+//       method: 'POST', headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ customerId }),
+//     });
+//     if (req3.status === 200) {
+//       const data = await req3.json();
+//       window.location.href = data.url as string;
+//     }
+//     setIsUpdating(false);
+//   }
 
-  async function handleCancelBilling() {
-    await fetch('/api/stripe/delete-user', { method: 'DELETE', body: JSON.stringify({ customerId: customerID }) });
-    const del = await fetch(`/api/user/email/${email}`, {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    if (del.ok) {
-      setTimeout(() => { window.location.href = `${process.env.NEXT_PUBLIC_SERVER_URL}/`; }, 2000);
-    }
-  }
+//   async function handleCancelBilling() {
+//     await fetch('/api/stripe/delete-user', { method: 'DELETE', body: JSON.stringify({ customerId: customerID }) });
+//     const del = await fetch(`/api/user/email/${email}`, {
+//       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ email }),
+//     });
+//     if (del.ok) {
+//       setTimeout(() => { window.location.href = `${process.env.NEXT_PUBLIC_SERVER_URL}/`; }, 2000);
+//     }
+//   }
 
-  return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      {!isUpdating && !isCancelling && (
-        <>
-          <button onClick={() => setIsUpdating(true)} style={primaryBtn}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Update Billing</button>
-          <button onClick={() => setIsCancelling(true)} style={dangerBtn}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}>Delete Account</button>
-        </>
-      )}
-      {isUpdating && (
-        <ConfirmPrompt prompt="Are you sure you want to update your billing?" onConfirm={handleUpdateBilling} onCancel={() => setIsUpdating(false)} danger />
-      )}
-      {isCancelling && (
-        <ConfirmPrompt prompt="Are you sure you want to delete your account? This cannot be undone." onConfirm={handleCancelBilling} onCancel={() => setIsCancelling(false)} danger />
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Inline HowToKey                                                    */
-/* ------------------------------------------------------------------ */
-
-function HowToKey() {
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, maxWidth: 480, margin: '0 0 16px 0' }}>
-        Watch this short tutorial on how to get your HubSpot API key. After
-        creating your app, click <strong style={{ color: '#334155' }}>show token</strong>, then copy
-        and paste the full value into the field below.
-      </p>
-      <video src="/howto.mp4" controls style={{ borderRadius: 8, maxWidth: 360, border: '1px solid #e2e8f0' }} />
-    </div>
-  );
-}
+//   return (
+//     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+//       {!isUpdating && !isCancelling && (
+//         <>
+//           <button onClick={() => setIsUpdating(true)} style={primaryBtn}
+//             onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
+//             onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Update Billing</button>
+//           <button onClick={() => setIsCancelling(true)} style={dangerBtn}
+//             onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
+//             onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}>Delete Account</button>
+//         </>
+//       )}
+//       {isUpdating && (
+//         <ConfirmPrompt prompt="Are you sure you want to update your billing?" onConfirm={handleUpdateBilling} onCancel={() => setIsUpdating(false)} danger />
+//       )}
+//       {isCancelling && (
+//         <ConfirmPrompt prompt="Are you sure you want to delete your account? This cannot be undone." onConfirm={handleCancelBilling} onCancel={() => setIsCancelling(false)} danger />
+//       )}
+//     </div>
+//   );
+// }
 
 /* ------------------------------------------------------------------ */
 /*  Main Dashboard                                                     */
@@ -531,9 +501,6 @@ export default function Dashboard() {
 
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-
-  const [zipToast, setZipToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [delZipToast, setDelZipToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const [revenuePromptLeadId, setRevenuePromptLeadId] = useState<string | null>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
@@ -711,45 +678,45 @@ export default function Dashboard() {
     } catch (err) { console.error(err); }
   };
 
-  const updateZipCodes = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget); e.currentTarget.reset();
-    const d = Object.fromEntries(fd.entries());
-    const zips: string[] = [];
-    try {
-      const r = await fetch(`/api/user/email/${user.email}`, { method: 'GET' });
-      if (!r.ok) return;
-      zips.push(...(await r.json()).zipCodes);
-    } catch { return; }
+  // const updateZipCodes = async (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   const fd = new FormData(e.currentTarget); e.currentTarget.reset();
+  //   const d = Object.fromEntries(fd.entries());
+  //   const zips: string[] = [];
+  //   try {
+  //     const r = await fetch(`/api/user/email/${user.email}`, { method: 'GET' });
+  //     if (!r.ok) return;
+  //     zips.push(...(await r.json()).zipCodes);
+  //   } catch { return; }
 
-    const newZips = (d.zipCodes as string).split(',').map((z) => z.trim());
-    const pat = /^\d{5}(-\d{4})?$/;
-    let bad = false;
-    for (const z of newZips) {
-      if (zips.includes(z)) { toast(setZipToast, 'Duplicate zip code.', 'error'); bad = true; break; }
-      if (!pat.test(z)) { toast(setZipToast, 'Invalid zip code format.', 'error'); bad = true; break; }
-      zips.push(z);
-    }
-    if (!bad) {
-      try {
-        const r = await fetch(`/api/user/email/${user.email}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ zipCodes: zips, password: d.password }) });
-        if (r.ok) { toast(setZipToast, 'Zip codes updated!', 'success'); setUser(await r.json()); }
-      } catch (err) { console.error(err); }
-    }
-  };
+  //   const newZips = (d.zipCodes as string).split(',').map((z) => z.trim());
+  //   const pat = /^\d{5}(-\d{4})?$/;
+  //   let bad = false;
+  //   for (const z of newZips) {
+  //     if (zips.includes(z)) { toast(setZipToast, 'Duplicate zip code.', 'error'); bad = true; break; }
+  //     if (!pat.test(z)) { toast(setZipToast, 'Invalid zip code format.', 'error'); bad = true; break; }
+  //     zips.push(z);
+  //   }
+  //   if (!bad) {
+  //     try {
+  //       const r = await fetch(`/api/user/email/${user.email}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({ zipCodes: zips, password: d.password }) });
+  //       if (r.ok) { toast(setZipToast, 'Zip codes updated!', 'success'); setUser(await r.json()); }
+  //     } catch (err) { console.error(err); }
+  //   }
+  // };
 
-  const deleteZipCodes = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget); e.currentTarget.reset();
-    const d = Object.fromEntries(fd.entries());
-    const toDel = (d.zipCodes as string).split(',').map((z) => z.trim());
-    const filtered = user.zipCodes.filter((z) => !toDel.includes(z));
-    const r = await fetch(`/api/user/email/${user.email}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ zipCodes: filtered, password: d.password }) });
-    if (r.status === 200) { toast(setDelZipToast, 'Zip codes deleted!', 'success'); setUser({ ...user, zipCodes: filtered }); }
-    else { toast(setDelZipToast, 'Error deleting zip codes.', 'error'); }
-  };
+  // const deleteZipCodes = async (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   const fd = new FormData(e.currentTarget); e.currentTarget.reset();
+  //   const d = Object.fromEntries(fd.entries());
+  //   const toDel = (d.zipCodes as string).split(',').map((z) => z.trim());
+  //   const filtered = user.zipCodes.filter((z) => !toDel.includes(z));
+  //   const r = await fetch(`/api/user/email/${user.email}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ zipCodes: filtered, password: d.password }) });
+  //   if (r.status === 200) { toast(setDelZipToast, 'Zip codes deleted!', 'success'); setUser({ ...user, zipCodes: filtered }); }
+  //   else { toast(setDelZipToast, 'Error deleting zip codes.', 'error'); }
+  // };
 
   /* ---- Loading gate ---- */
   if (!loaded) return (
@@ -991,7 +958,7 @@ export default function Dashboard() {
         )}
 
         {/* ======== ACCOUNT & SETTINGS ======== */}
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 20px 0' }}>Account &amp; Settings</h2>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 20px 0' }}>Account Details</h2>
 
         {/* Row 1: User Details + Account Info */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
@@ -1019,87 +986,6 @@ export default function Dashboard() {
             <InfoRow label="Updated" value={user.updatedAt ? new Date(user.updatedAt).toLocaleString() : '—'} />
             <InfoRow label="Session Expiry" value={user.sessionExpiry ? new Date(user.sessionExpiry).toLocaleString() : '—'} />
           </div>
-        </div>
-
-        {/* Row 2: Add Zips + Delete Zips */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
-          <div style={cardStyle}>
-            <h3 style={sectionTitle}>Add Zip Codes</h3>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px 0' }}>Submit zip codes as a comma-separated list.</p>
-            <form onSubmit={updateZipCodes}>
-              <label style={{ ...labelSt, marginTop: 0 }}>Zip Codes</label>
-              <input type="text" name="zipCodes" placeholder="12345, 12346, 12347..." style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <label style={labelSt}>Password</label>
-              <input type="password" name="password" required style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <button type="submit" style={primaryBtn}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Add Zip Codes</button>
-              {zipToast && <Toast message={zipToast.msg} type={zipToast.type} />}
-            </form>
-          </div>
-          <div style={cardStyle}>
-            <h3 style={sectionTitle}>Delete Zip Codes</h3>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px 0' }}>Submit zip codes to remove as a comma-separated list.</p>
-            <form onSubmit={deleteZipCodes}>
-              <label style={{ ...labelSt, marginTop: 0 }}>Zip Codes</label>
-              <input type="text" name="zipCodes" placeholder="12345, 12346, 12347..." style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#dc2626')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <label style={labelSt}>Password</label>
-              <input type="password" name="password" required style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#dc2626')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <button type="submit" style={dangerBtn}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}>Delete Zip Codes</button>
-              {delZipToast && <Toast message={delZipToast.msg} type={delZipToast.type} />}
-            </form>
-          </div>
-        </div>
-
-        {/* Row 3: Update Info + HubSpot Key */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
-          <div style={cardStyle}>
-            <h3 style={sectionTitle}>Update Information</h3>
-            <form onSubmit={updateInfomation}>
-              <label style={{ ...labelSt, marginTop: 0 }}>First Name</label>
-              <input type="text" name="first" placeholder={user.firstName} style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <label style={labelSt}>Last Name</label>
-              <input type="text" name="last" placeholder={user.lastName} style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <label style={labelSt}>Email</label>
-              <input type="email" name="email" placeholder={user.email} style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <label style={labelSt}>Password</label>
-              <input type="password" name="password" required style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <button type="submit" style={primaryBtn}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Update Information</button>
-            </form>
-          </div>
-          <div style={cardStyle}>
-            <h3 style={sectionTitle}>HubSpot API Key</h3>
-            <HowToKey />
-            <form onSubmit={submitHubspotKey}>
-              <label style={{ ...labelSt, marginTop: 4 }}>HubSpot Key</label>
-              <input type="text" name="hubspotKey" style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <label style={labelSt}>Password</label>
-              <input type="password" name="password" required style={inputSt}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#4338ca')} onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')} />
-              <button type="submit" style={primaryBtn}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#3730a3')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#4338ca')}>Update HubSpot Key</button>
-            </form>
-          </div>
-        </div>
-
-        {/* Billing */}
-        <div style={{ ...cardStyle, marginBottom: 48 }}>
-          <h3 style={sectionTitle}>Billing &amp; Account</h3>
-          <BillingManagement email={user.email} />
         </div>
       </div>
     </div>
