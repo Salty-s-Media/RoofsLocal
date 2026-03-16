@@ -1,6 +1,6 @@
 import { Eye, EyeOff, Search, X, Trash2, DollarSign, ListPlus, Download, ListX, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 interface Lead {
   id: string;
@@ -12,6 +12,8 @@ interface Lead {
   city: string;
   zipCode: string;
   createdAt: string;
+  status: string;
+  revenue: number | null;
 }
 
 interface Contractor {
@@ -29,6 +31,30 @@ interface Contractor {
 
 type ModalType = 'price' | 'addZip' | 'deleteZip' | 'delete' | 'leads' | null;
 type TimePeriod = '7D' | '30D' | '90D' | 'YTD' | 'Custom';
+
+/* ------------------------------------------------------------------ */
+/*  Status config (mirrored from dashboard)                            */
+/* ------------------------------------------------------------------ */
+
+const STATUS_OPTIONS: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  NEW_LEAD:       { label: 'NEW LEAD',       color: '#4338ca', bg: '#eef2ff', border: '#a5b4fc' },
+  APPT_SCHEDULED: { label: 'APPT SCHEDULED', color: '#0369a1', bg: '#e0f2fe', border: '#7dd3fc' },
+  APPT_COMPLETED: { label: 'APPT COMPLETED', color: '#7e22ce', bg: '#faf5ff', border: '#c4b5fd' },
+  NOT_SOLD:       { label: 'NOT SOLD',       color: '#c2410c', bg: '#fff7ed', border: '#fdba74' },
+  SOLD:           { label: 'SOLD',           color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+  DEAD:           { label: 'DEAD',           color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+};
+
+const STATUS_KEYS = Object.keys(STATUS_OPTIONS);
+const DEFAULT_BADGE = { label: 'UNKNOWN', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' };
+
+function fmt(n: number): string {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
 function getDateRange(period: TimePeriod, customStart?: string, customEnd?: string): { startDate: string; endDate: string } {
   const now = new Date();
@@ -63,12 +89,74 @@ function getDateRange(period: TimePeriod, customStart?: string, customEnd?: stri
 }
 
 function formatDateLabel(startDate: string, endDate: string): string {
-  const fmt = (d: string) => {
+  const fmtDate = (d: string) => {
     const date = new Date(d + 'T00:00:00');
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
-  return `${fmt(startDate)} – ${fmt(endDate)}`;
+  return `${fmtDate(startDate)} – ${fmtDate(endDate)}`;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Sub-components                                                     */
+/* ------------------------------------------------------------------ */
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_OPTIONS[status] || DEFAULT_BADGE;
+  return (
+    <span
+      className="inline-block px-2.5 py-0.5 rounded-md text-xs font-bold tracking-wide whitespace-nowrap"
+      style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+function MiniPipeline({ leads }: { leads: Lead[] }) {
+  const total = leads.length || 1;
+  const counts: Record<string, number> = {};
+  for (const k of STATUS_KEYS) counts[k] = 0;
+  for (const l of leads) {
+    if (counts[l.status] !== undefined) counts[l.status]++;
+  }
+
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Sales Pipeline</p>
+      <div className="flex flex-col gap-2">
+        {STATUS_KEYS.map((key) => {
+          const cfg = STATUS_OPTIONS[key];
+          const count = counts[key] || 0;
+          const pct = (count / total) * 100;
+          return (
+            <div key={key} className="flex items-center gap-3">
+              <div className="w-[110px] text-[11px] font-bold shrink-0 tracking-wide" style={{ color: cfg.color }}>
+                {cfg.label}
+              </div>
+              <div className="flex-1 bg-gray-100 rounded h-5 relative overflow-hidden">
+                {count > 0 && (
+                  <div
+                    className="h-full rounded flex items-center pl-2 transition-all duration-300"
+                    style={{ background: cfg.color, opacity: 0.7, width: `${Math.max(pct, 3)}%` }}
+                  >
+                    {pct >= 10 && (
+                      <span className="text-[10px] font-bold text-white">{Math.round(pct)}%</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="w-6 text-right text-sm font-bold text-gray-700 shrink-0">{count}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main Component                                                     */
+/* ------------------------------------------------------------------ */
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false);
@@ -90,6 +178,8 @@ export default function Admin() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsContractor, setLeadsContractor] = useState<Contractor | null>(null);
+  const [leadsPricePerLead, setLeadsPricePerLead] = useState(0);
+  const [leadsStatusOverrides, setLeadsStatusOverrides] = useState<Record<string, string>>({});
 
   const router = useRouter();
 
@@ -139,35 +229,49 @@ export default function Admin() {
     }
   };
 
-  // ── Updated: accepts date range ──
   const getUsers = async () => {
     const res = await fetch(`/api/user/admin/get-all?startDate=${startDate}&endDate=${endDate}`);
     const data = await res.json();
     if (res.ok) setUsers(data?.contractors || []);
   };
 
-  // Re-fetch when date range changes
   useEffect(() => {
     if (authed) getUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, authed]);
 
-  // ── New: fetch leads for a contractor ──
   const getContractorLeads = async (contractor: Contractor) => {
     setLeadsContractor(contractor);
     setCurrentUser(contractor);
     setModalType('leads');
     setLeadsLoading(true);
+    setLeadsStatusOverrides({});
 
     try {
-      const res = await fetch(
-        `/api/user/admin/contractor-leads?contractorId=${contractor.id}&startDate=${startDate}&endDate=${endDate}`
-      );
-      const data = await res.json();
-      if (res.ok) {
-        setLeads(data?.leads || []);
+      // Use the SAME leads endpoint as the dashboard so we get the full
+      // LeadsApiResponse including lead.revenue (from HubSpot lead_revenue).
+      // The admin-only endpoint doesn't return revenue data.
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+
+      const [leadsRes, overridesRes] = await Promise.all([
+        fetch(`/api/user/leads/${contractor.id}?${params.toString()}`),
+        fetch(`/api/user/leads/status-override?contractorId=${contractor.id}`),
+      ]);
+
+      const leadsData = await leadsRes.json();
+      if (leadsRes.ok) {
+        setLeads(leadsData?.leads || []);
+        // pricePerLead from this endpoint is in dollars (same as dashboard)
+        setLeadsPricePerLead(leadsData?.pricePerLead ?? (contractor.pricePerLead / 100));
       } else {
         showNotification('error', 'Failed to load leads');
+      }
+
+      if (overridesRes.ok) {
+        const overridesData = await overridesRes.json();
+        setLeadsStatusOverrides(overridesData || {});
       }
     } catch {
       showNotification('error', 'An error occurred loading leads');
@@ -175,6 +279,32 @@ export default function Admin() {
       setLeadsLoading(false);
     }
   };
+
+  /* ---- Computed KPIs for leads modal (mirrors dashboard mergedLeads logic) ---- */
+  const leadsKpis = useMemo(() => {
+    // Step 1: Apply status overrides from LeadStatusOverride table
+    // This is the same merge the dashboard does in its mergedLeads useMemo
+    const mergedLeads = leads.map((l) => {
+      const override = leadsStatusOverrides[l.id];
+      if (override) {
+        return { ...l, status: override };
+      }
+      // Default to NEW_LEAD if the HubSpot status doesn't match our enum
+      if (!STATUS_OPTIONS[l.status]) {
+        return { ...l, status: 'NEW_LEAD' };
+      }
+      return l;
+    });
+
+    // Step 2: Compute KPIs from merged leads
+    const soldLeads = mergedLeads.filter((l) => l.status === 'SOLD');
+    const connectedJobs = soldLeads.length;
+    // revenue comes from lead.revenue (HubSpot lead_revenue field)
+    const totalRevenue = soldLeads.reduce((sum, l) => sum + (l.revenue ?? 0), 0);
+    const adSpend = mergedLeads.length * leadsPricePerLead;
+    const roi = adSpend > 0 ? (totalRevenue / adSpend).toFixed(1) : '0.0';
+    return { mergedLeads, soldLeads, connectedJobs, totalRevenue, adSpend, roi };
+  }, [leads, leadsPricePerLead, leadsStatusOverrides]);
 
   const changePrice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -335,7 +465,7 @@ export default function Admin() {
 
   const Modal = ({ children, onClose, wide }: { children: React.ReactNode; onClose: () => void; wide?: boolean }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-lg shadow-xl ${wide ? 'max-w-lg' : 'max-w-md'} w-full max-h-[90vh] overflow-y-auto`}>
+      <div className={`bg-white rounded-lg shadow-xl ${wide ? 'max-w-2xl' : 'max-w-md'} w-full max-h-[90vh] overflow-y-auto`}>
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
           <h3 className="text-xl font-bold text-gray-900">
             {modalType === 'price' && 'Update Price'}
@@ -801,20 +931,30 @@ export default function Admin() {
             </Modal>
           )}
 
-          {/* ── Leads Detail Modal ── */}
+          {/* ── Leads Detail Modal (enhanced with revenue) ── */}
           {modalType === 'leads' && leadsContractor && (
             <Modal onClose={() => setModalType(null)} wide>
-              {/* Summary header */}
-              <div className="flex gap-4 mb-6">
-                <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Leads Sent</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{leadsContractor.leadsSent}</p>
+              {/* KPI Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Total Leads</p>
+                  <p className="text-2xl font-extrabold text-gray-900 mt-1">{leadsKpis.mergedLeads.length}</p>
+                  <p className="text-xs text-gray-500 mt-1">{fmt(leadsPricePerLead)}/lead</p>
                 </div>
-                <div className="flex-1 bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">Revenue Collected</p>
-                  <p className="text-2xl font-bold text-green-700 mt-1">
-                    ${(leadsContractor.revenueCollected / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Ad Spend</p>
+                  <p className="text-2xl font-extrabold text-gray-900 mt-1">{fmt(leadsKpis.adSpend)}</p>
+                  <p className="text-xs text-gray-500 mt-1">{leadsKpis.mergedLeads.length} leads</p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Revenue</p>
+                  <p className="text-2xl font-extrabold text-green-700 mt-1">{fmt(leadsKpis.totalRevenue)}</p>
+                  <p className="text-xs text-gray-500 mt-1">{leadsKpis.connectedJobs} sold lead{leadsKpis.connectedJobs !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">ROI</p>
+                  <p className="text-2xl font-extrabold text-gray-900 mt-1">{leadsKpis.roi}x</p>
+                  <p className="text-xs text-gray-500 mt-1">Revenue ÷ Spend</p>
                 </div>
               </div>
 
@@ -829,54 +969,86 @@ export default function Admin() {
                   <p className="text-gray-500">No leads found for this period</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {leads.map((lead) => (
-                    <div key={lead.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <h4 className="font-semibold text-gray-900">
-                          {lead.firstName} {lead.lastName}
-                        </h4>
-                        <span className="text-xs text-gray-500">
-                          {new Date(lead.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 uppercase">First Name</p>
-                          <p className="text-gray-900">{lead.firstName}</p>
+                <>
+                  {/* Sales Pipeline */}
+                  <MiniPipeline leads={leadsKpis.mergedLeads} />
+
+                  {/* Lead Cards */}
+                  <div className="space-y-4">
+                    {leadsKpis.mergedLeads.map((lead) => {
+                      const status = lead.status;
+                      const isSold = status === 'SOLD';
+                      return (
+                        <div key={lead.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900">
+                                {lead.firstName} {lead.lastName}
+                              </h4>
+                              <StatusBadge status={status} />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {/* Revenue badge — show for any lead with revenue */}
+                              {lead.revenue != null && lead.revenue > 0 && (
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold border ${
+                                  isSold
+                                    ? 'bg-green-100 text-green-700 border-green-300'
+                                    : 'bg-gray-100 text-gray-600 border-gray-300'
+                                }`}>
+                                  {fmt(lead.revenue)}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500">
+                                {new Date(lead.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                            <div>
+                              <p className="text-xs font-semibold text-green-600 uppercase">First Name</p>
+                              <p className="text-gray-900">{lead.firstName}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-green-600 uppercase">Last Name</p>
+                              <p className="text-gray-900">{lead.lastName}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-green-600 uppercase">Phone</p>
+                              <p className="text-gray-900">{lead.phone}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-green-600 uppercase">Email</p>
+                              <p className="text-gray-900 break-all">{lead.email}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-xs font-semibold text-green-600 uppercase">Street Address</p>
+                              <p className="text-gray-900">{lead.streetAddress}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-green-600 uppercase">City</p>
+                              <p className="text-gray-900">{lead.city}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-green-600 uppercase">Zip Code</p>
+                              <p className="text-gray-900">{lead.zipCode}</p>
+                            </div>
+                            {/* Revenue row — visible for any lead with revenue from HubSpot */}
+                            {lead.revenue != null && lead.revenue > 0 && (
+                              <div className="col-span-2 mt-1 pt-2 border-t border-gray-100">
+                                <p className="text-xs font-semibold text-green-600 uppercase">Lead Revenue</p>
+                                <p className="text-gray-900 font-bold text-lg">{fmt(lead.revenue)}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 uppercase">Last Name</p>
-                          <p className="text-gray-900">{lead.lastName}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 uppercase">Phone</p>
-                          <p className="text-gray-900">{lead.phone}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 uppercase">Email</p>
-                          <p className="text-gray-900 break-all">{lead.email}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <p className="text-xs font-semibold text-green-600 uppercase">Street Address</p>
-                          <p className="text-gray-900">{lead.streetAddress}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 uppercase">City</p>
-                          <p className="text-gray-900">{lead.city}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-green-600 uppercase">Zip Code</p>
-                          <p className="text-gray-900">{lead.zipCode}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </Modal>
           )}
