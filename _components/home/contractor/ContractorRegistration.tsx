@@ -29,6 +29,13 @@ export default function ContractorRegistration() {
   const [coverageZips, setCoverageZips] = React.useState<string[]>([]);
   const [zipInput, setZipInput] = React.useState("");
 
+  function formatPhone(value: string): string {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
   function validatePassword(pw: string) {
     const hasUppercase = /[A-Z]/.test(pw);
     const hasSymbol = /[\W_]/.test(pw);
@@ -77,7 +84,7 @@ export default function ContractorRegistration() {
         lastName.trim() !== "" &&
         email.trim() !== "" &&
         password.length >= 7 &&
-        phone.trim() !== "" &&
+        phone.replace(/\D/g, "").length === 10 &&
         (passwordMsg?.valid ?? false)
       );
     }
@@ -104,7 +111,8 @@ export default function ContractorRegistration() {
     const resp = await fetch(`/api/user/email/${email}`, { method: "GET" });
     const res = await resp.json();
 
-    const fmtPhone = phone && !phone.startsWith("+") ? `+1${phone}` : phone;
+    const rawPhone = phone.replace(/\D/g, "");
+    const fmtPhone = rawPhone && !rawPhone.startsWith("+") ? `+1${rawPhone}` : rawPhone;
 
     if (resp.status === 200) {
       if (res.phone === fmtPhone || res.email === email) {
@@ -216,7 +224,7 @@ export default function ContractorRegistration() {
         ) : (
           <div
             id="register-form"
-            className="bg-white p-8 text-blk rounded-xl shadow-lg"
+            className="bg-white p-8 pb-10 text-blk rounded-xl shadow-lg"
           >
             <h2 className="text-gray-800 text-center font-bold text-2xl mb-2">
               {step === 0
@@ -282,7 +290,7 @@ export default function ContractorRegistration() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
                 <div>
@@ -299,7 +307,7 @@ export default function ContractorRegistration() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
                 <div>
@@ -316,7 +324,7 @@ export default function ContractorRegistration() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
                 <div>
@@ -337,7 +345,7 @@ export default function ContractorRegistration() {
                       validatePassword(e.target.value);
                     }}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                     style={
                       passwordMsg
                         ? {
@@ -367,9 +375,9 @@ export default function ContractorRegistration() {
                     type="tel"
                     placeholder="(123)-123-1234"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(formatPhone(e.target.value))}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
               </div>
@@ -393,7 +401,7 @@ export default function ContractorRegistration() {
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
                 <div>
@@ -411,7 +419,7 @@ export default function ContractorRegistration() {
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
                     required
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
               </div>
@@ -439,7 +447,7 @@ export default function ContractorRegistration() {
                     onChange={(e) => setZipInput(e.target.value)}
                     onKeyDown={handleZipKeyDown}
                     onBlur={handleZipInputBlur}
-                    className="mt-1 block w-full border-gray-300 shadow-sm sm:text-sm rounded-md"
+                    className="mt-1 block w-full border border-gray-300 px-3 py-2 shadow-sm sm:text-sm rounded-md focus:outline-none focus:ring-1 focus:ring-acc2 focus:border-acc2"
                   />
                 </div>
 
