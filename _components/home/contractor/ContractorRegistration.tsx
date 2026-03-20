@@ -219,7 +219,11 @@ export default function ContractorRegistration() {
             className="bg-white p-8 text-blk rounded-xl shadow-lg"
           >
             <h2 className="text-gray-800 text-center font-bold text-2xl mb-2">
-              Welcome!
+              {step === 0
+                ? "Create Your Account"
+                : step === 1
+                  ? "Your Business"
+                  : "Coverage Area"}
             </h2>
 
             {/* Step Progress Indicator */}
@@ -230,8 +234,8 @@ export default function ContractorRegistration() {
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                         i <= step
-                          ? "bg-gray-800 text-white"
-                          : "bg-gray-300 text-gray-500"
+                          ? "bg-acc2 text-white"
+                          : "bg-gray-200 text-gray-500"
                       }`}
                     >
                       {i + 1}
@@ -239,7 +243,7 @@ export default function ContractorRegistration() {
                     <span
                       className={`text-xs mt-1 ${
                         i <= step
-                          ? "text-gray-800 font-semibold"
+                          ? "text-acc2 font-semibold"
                           : "text-gray-400"
                       }`}
                     >
@@ -249,7 +253,7 @@ export default function ContractorRegistration() {
                   {i < STEP_LABELS.length - 1 && (
                     <div
                       className={`flex-1 h-0.5 mx-2 mb-4 ${
-                        i < step ? "bg-gray-800" : "bg-gray-300"
+                        i < step ? "bg-acc2" : "bg-gray-200"
                       }`}
                     />
                   )}
@@ -263,7 +267,7 @@ export default function ContractorRegistration() {
 
             {/* Step 1 – Account Info */}
             {step === 0 && (
-              <div className="space-y-3">
+              <div className="space-y-5">
                 <div>
                   <label
                     htmlFor="firstName"
@@ -373,7 +377,7 @@ export default function ContractorRegistration() {
 
             {/* Step 2 – Business Info */}
             {step === 1 && (
-              <div className="space-y-3">
+              <div className="space-y-5">
                 <div>
                   <label
                     htmlFor="company"
@@ -415,7 +419,7 @@ export default function ContractorRegistration() {
 
             {/* Step 3 – Coverage Area */}
             {step === 2 && (
-              <div className="space-y-3">
+              <div className="space-y-5">
                 <div>
                   <label
                     htmlFor="coverageZips"
@@ -489,7 +493,7 @@ export default function ContractorRegistration() {
                   type="button"
                   disabled={!canAdvance()}
                   onClick={() => setStep(step + 1)}
-                  className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-acc2 text-white rounded hover:bg-acc1 hover:text-black transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-acc2 disabled:hover:text-white"
                 >
                   Next
                 </button>
@@ -498,7 +502,7 @@ export default function ContractorRegistration() {
                   type="button"
                   disabled={coverageZips.length === 0}
                   onClick={handleSubmit}
-                  className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-acc2 text-white rounded hover:bg-acc1 hover:text-black transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-acc2 disabled:hover:text-white"
                 >
                   Submit
                 </button>
