@@ -183,13 +183,6 @@ export default function Navbar() {
                         >
                           Login
                         </Link>
-                        <Link
-                          href="/help"
-                          onClick={() => setOpen(false)}
-                          className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-gray-600 border-2 border-gray-100 hover:bg-gray-800 transition duration-200 ease-in-out"
-                        >
-                          Help Guide
-                        </Link>
                         <button
                           onClick={() => setOpen(false)}
                           className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-gray-700 hover:bg-acc1 transition duration-200 ease-in-out"
@@ -233,12 +226,6 @@ export default function Navbar() {
                     className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-acc2 hover:bg-acc1 transition duration-200 ease-in-out"
                   >
                     Login
-                  </Link>
-                  <Link
-                    href="/help"
-                    className="px-4 py-2 text-white text-sm font-semibold rounded-md bg-gray-600 border-2 border-gray-100 hover:bg-gray-800 transition duration-200 ease-in-out"
-                  >
-                    Help Guide
                   </Link>
                 </>
               )}
