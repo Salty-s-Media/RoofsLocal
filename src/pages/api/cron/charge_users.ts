@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 import { Resend } from 'resend';
 import { Parser } from 'json2csv';
 import Stripe from 'stripe';
-import axios from 'axios';
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -49,6 +48,10 @@ export default async function handler(
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Lead fetching
+// ---------------------------------------------------------------------------
 
 async function getOpenLeads() {
   return getHubspotLeads('OPEN');
@@ -136,32 +139,65 @@ async function getHubspotLeads(status: string) {
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Round-robin lead matching
+// ---------------------------------------------------------------------------
+
 async function matchLeads(leads: any[]) {
   const contractorLeadsMap: { [key: string]: any[] } = {};
 
   for (const lead of leads) {
-    const contractor = await prisma.contractor.findFirst({
-      where: {
-        zipCodes: {
-          has: lead.zip.substring(0, 5),
-        },
-      },
-    });
-    if (contractor) {
+    try {
+      const zip = lead.zip?.substring(0, 5);
+      if (!zip) {
+        console.warn(`Lead ${lead.id} has no zip code, skipping`);
+        continue;
+      }
+
+      // Fetch ALL contractors that serve this zip, in a stable order.
+      const contractors = await prisma.contractor.findMany({
+        where: { zipCodes: { has: zip } },
+        orderBy: { id: 'asc' },
+      });
+
+      if (contractors.length === 0) continue;
+
+      // Atomically claim the next round-robin slot inside a serialized
+      // transaction. Two overlapping cron runs will never see the same
+      // lastIndex because the upsert holds a row-level lock until commit.
+      const nextIndex = await prisma.$transaction(async (tx) => {
+        const tracker = await tx.zipRoundRobin.upsert({
+          where: { zipCode: zip },
+          create: { zipCode: zip, lastIndex: 1 },
+          update: { lastIndex: { increment: 1 } },
+        });
+
+        // tracker.lastIndex is the value *after* the increment,
+        // so subtract 1 to get the assignment index for this call.
+        return (tracker.lastIndex - 1) % contractors.length;
+      });
+
+      const contractor = contractors[nextIndex];
+
       if (!contractorLeadsMap[contractor.id]) {
         contractorLeadsMap[contractor.id] = [];
       }
       contractorLeadsMap[contractor.id].push(lead);
+    } catch (error) {
+      // Log and skip — one bad lead never blocks the rest of the batch.
+      console.error(`Failed to match lead ${lead.id}, skipping:`, error);
+      continue;
     }
   }
 
   return contractorLeadsMap;
 }
 
+// ---------------------------------------------------------------------------
+// Lead processing (GHL + HubSpot sync)
+// ---------------------------------------------------------------------------
+
 async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
-  // Returns a new map containing only leads that were successfully processed
-  // (i.e. GHL contact + opportunity created). Failed leads are left untouched
-  // in the original map but excluded from billing and CONNECTED status.
   const successfulLeadsMap: { [key: string]: any[] } = {};
 
   for (const contractorId in contractorLeadsMap) {
@@ -188,7 +224,9 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
         }
         successfulLeadsMap[contractorId].push(lead);
       } else {
-        console.warn(`GHL contact creation failed for lead ${lead.id}, excluding from billing`);
+        console.warn(
+          `GHL contact creation failed for lead ${lead.id}, excluding from billing`
+        );
       }
     }
   }
@@ -349,6 +387,10 @@ async function createGHLOpporunity(
   console.log('GHL create oportunity response: ', ghlResponse);
 }
 
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
 function mergeLeadsMaps(
   map1: { [key: string]: any[] },
   map2: { [key: string]: any[] }
@@ -384,8 +426,8 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       if (leads.length === 0) continue;
 
       // --- Duplicate billing protection ---
-      // Mark leads as CONNECTED *before* charging so a concurrent run won't pick them up.
-      // If the charge fails we revert them back to IN_PROGRESS.
+      // Mark leads as CONNECTED *before* charging so a concurrent run won't
+      // pick them up. If the charge fails we revert them back to IN_PROGRESS.
       await updateHubspotLeads(leads, 'CONNECTED');
 
       const cost = leads.length * contractor.pricePerLead;
@@ -420,7 +462,10 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
           `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
         );
       } catch (chargeError) {
-        console.error('Charge failed, reverting leads to IN_PROGRESS:', chargeError);
+        console.error(
+          'Charge failed, reverting leads to IN_PROGRESS:',
+          chargeError
+        );
         await updateHubspotLeads(leads, 'IN_PROGRESS');
       }
     } catch (error) {
@@ -463,6 +508,10 @@ async function chargeContractor(
   return payment;
 }
 
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
 async function sendEmail(contractor: any, leads: any[]) {
   resend.emails.send({
     from: 'Roofs Local <info@roofslocal.app>',
@@ -481,6 +530,10 @@ async function sendEmail(contractor: any, leads: any[]) {
     ],
   });
 }
+
+// ---------------------------------------------------------------------------
+// HubSpot helpers
+// ---------------------------------------------------------------------------
 
 async function updateHubspotLeads(leads: any[], status: string = 'CONNECTED') {
   const updateRequests = leads.map((lead) => ({
@@ -515,6 +568,10 @@ async function updateHubspotLeads(leads: any[], status: string = 'CONNECTED') {
   console.log(`Updated HubSpot leads to ${status}:`, responseBody);
   return responseBody;
 }
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

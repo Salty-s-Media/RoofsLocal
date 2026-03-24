@@ -67,3 +67,8 @@ model LeadStatusOverride {
 
   @@index([contractorId])
 }
+
+model ZipRoundRobin {
+  zipCode   String @id
+  lastIndex Int    @default(0)
+}
