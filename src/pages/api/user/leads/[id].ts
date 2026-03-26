@@ -21,6 +21,11 @@ interface HubSpotContact {
     createdate: string;
     hs_lead_status: string;
     lead_revenue: string | null;
+    utm_source: string | null;
+    utm_medium: string | null;
+    utm_campaign: string | null;
+    utm_term: string | null;
+    utm_content: string | null;
   };
 }
 
@@ -44,6 +49,11 @@ interface MappedLead {
   createdAt: string;
   status: string;
   revenue: number | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmTerm: string | null;
+  utmContent: string | null;
 }
 
 const LEAD_PROPERTIES = [
@@ -57,6 +67,11 @@ const LEAD_PROPERTIES = [
   "createdate",
   "hs_lead_status",
   "lead_revenue",
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
 ];
 
 const DEFAULT_REVENUE = 0;
@@ -89,6 +104,11 @@ function mapContact(
     createdAt: contact.properties.createdate || "",
     status,
     revenue,
+    utmSource: contact.properties.utm_source || null,
+    utmMedium: contact.properties.utm_medium || null,
+    utmCampaign: contact.properties.utm_campaign || null,
+    utmTerm: contact.properties.utm_term || null,
+    utmContent: contact.properties.utm_content || null,
   };
 }
 
