@@ -140,7 +140,7 @@ async function getHubspotLeads(status: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Round-robin lead matching
+// Least-assignments lead matching
 // ---------------------------------------------------------------------------
 
 async function matchLeads(leads: any[]) {
@@ -162,22 +162,57 @@ async function matchLeads(leads: any[]) {
 
       if (contractors.length === 0) continue;
 
-      // Atomically claim the next round-robin slot inside a serialized
-      // transaction. Two overlapping cron runs will never see the same
-      // lastIndex because the upsert holds a row-level lock until commit.
-      const nextIndex = await prisma.$transaction(async (tx) => {
-        const tracker = await tx.zipRoundRobin.upsert({
-          where: { zipCode: zip },
-          create: { zipCode: zip, lastIndex: 1 },
-          update: { lastIndex: { increment: 1 } },
+      // Pick the contractor with the fewest assignments for this zip.
+      // Uses a serialized transaction so concurrent runs don't collide.
+      const contractor = await prisma.$transaction(async (tx) => {
+        const contractorIds = contractors.map((c) => c.id);
+
+        // Get existing counts for all contractors serving this zip
+        const existingCounts = await tx.contractorZipCount.findMany({
+          where: {
+            zipCode: zip,
+            contractorId: { in: contractorIds },
+          },
         });
 
-        // tracker.lastIndex is the value *after* the increment,
-        // so subtract 1 to get the assignment index for this call.
-        return (tracker.lastIndex - 1) % contractors.length;
-      });
+        const countMap = new Map(
+          existingCounts.map((c) => [c.contractorId, c.assignedCount])
+        );
 
-      const contractor = contractors[nextIndex];
+        // Find the contractor with the lowest count.
+        // Contractors with no row yet have an implicit count of 0.
+        // Tie-break by id (the contractors array is already sorted by id asc).
+        let bestContractor = contractors[0];
+        let bestCount = countMap.get(contractors[0].id) ?? 0;
+
+        for (let i = 1; i < contractors.length; i++) {
+          const count = countMap.get(contractors[i].id) ?? 0;
+          if (count < bestCount) {
+            bestCount = count;
+            bestContractor = contractors[i];
+          }
+        }
+
+        // Atomically increment (or create) the winner's count
+        await tx.contractorZipCount.upsert({
+          where: {
+            contractorId_zipCode: {
+              contractorId: bestContractor.id,
+              zipCode: zip,
+            },
+          },
+          create: {
+            contractorId: bestContractor.id,
+            zipCode: zip,
+            assignedCount: 1,
+          },
+          update: {
+            assignedCount: { increment: 1 },
+          },
+        });
+
+        return bestContractor;
+      });
 
       if (!contractorLeadsMap[contractor.id]) {
         contractorLeadsMap[contractor.id] = [];
