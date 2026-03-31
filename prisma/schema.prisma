@@ -48,6 +48,7 @@ model Contractor {
   ghlPipelineStageId String   @default("")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  zipAssignments ContractorZipCount[]
 }
 
 enum LeadStatus {
@@ -68,7 +69,14 @@ model LeadStatusOverride {
   @@index([contractorId])
 }
 
-model ZipRoundRobin {
-  zipCode   String @id
-  lastIndex Int    @default(0)
+model ContractorZipCount {
+  contractorId  String
+  zipCode       String
+  assignedCount Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  contractor Contractor @relation(fields: [contractorId], references: [id])
+
+  @@id([contractorId, zipCode])
+  @@index([zipCode])
 }
