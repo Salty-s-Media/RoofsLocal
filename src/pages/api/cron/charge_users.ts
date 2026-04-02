@@ -591,46 +591,83 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       }
 
       const leads = contractorLeadsMap[contractorId];
-
       if (leads.length === 0) continue;
 
-      // Mark leads as CONNECTED before charging so concurrent runs
-      // won't pick them up. Revert to IN_PROGRESS if charge fails.
+      // Resolve Stripe customer + payment method from the original
+      // checkout session the contractor completed during onboarding.
+      const { customerId, paymentMethodId } = await getStripeCustomerInfo(
+        contractor.stripeSessionId
+      );
+
+      // Pre-check: verify the card isn't expired before we mark
+      // anything CONNECTED or create an invoice. If the card is dead,
+      // skip this contractor entirely — leads stay IN_PROGRESS and
+      // will retry on the next cron run.
+      const paymentMethod = await stripe.paymentMethods.retrieve(
+        paymentMethodId
+      );
+
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1; // 1-indexed
+      const currentYear = now.getFullYear();
+      const expMonth = paymentMethod.card?.exp_month ?? 0;
+      const expYear = paymentMethod.card?.exp_year ?? 0;
+
+      if (
+        expYear < currentYear ||
+        (expYear === currentYear && expMonth < currentMonth)
+      ) {
+        console.warn(
+          `Skipping ${contractor.email} — card ending ` +
+            `${paymentMethod.card?.last4} expired ${expMonth}/${expYear}. ` +
+            `${leads.length} leads stay IN_PROGRESS.`
+        );
+        continue;
+      }
+
+      // Card looks good — mark CONNECTED so concurrent runs skip these.
       await updateHubspotLeads(leads, 'CONNECTED');
 
-      const cost = leads.length * contractor.pricePerLead;
-      const leadIds = leads.map((l: any) => l.id);
+      // Create one invoice item per lead
+      for (const lead of leads) {
+        await stripe.invoiceItems.create({
+          customer: customerId,
+          amount: contractor.pricePerLead,
+          currency: 'usd',
+          description: `Lead: ${lead.firstname} ${lead.lastname} — ${
+            lead.city || ''
+          } ${lead.zip || ''}`,
+        });
+      }
 
+      // Create and finalize the invoice
+      const invoice = await stripe.invoices.create({
+        customer: customerId,
+        default_payment_method: paymentMethodId,
+        collection_method: 'charge_automatically',
+        metadata: {
+          contractorId: contractor.id,
+          contractorEmail: contractor.email,
+          leadCount: String(leads.length),
+          pricePerLead: String(contractor.pricePerLead),
+          billedAt: new Date().toISOString(),
+        },
+      });
+
+      await stripe.invoices.finalizeInvoice(invoice.id);
+
+      // Attempt immediate collection
       try {
-        const payment = await chargeContractor(
-          contractor.stripeSessionId,
-          cost,
-          {
-            contractorId: contractor.id,
-            contractorEmail: contractor.email,
-            leadCount: String(leads.length),
-            pricePerLead: String(contractor.pricePerLead),
-            leadIds: leadIds.join(',').substring(0, 500),
-            billedAt: new Date().toISOString(),
-          },
-          `${leads.length} leads for ${contractor.email} at $${
-            contractor.pricePerLead / 100
-          }/lead`
-        );
+        const paidInvoice = await stripe.invoices.pay(invoice.id);
 
-        if (payment.status !== 'succeeded') {
-          console.error("Payment didn't process:", payment.status);
-          await updateHubspotLeads(leads, 'IN_PROGRESS');
-          continue;
-        }
-
+        const total = leads.length * contractor.pricePerLead;
         console.log(
-          `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
+          `Invoiced ${contractor.email} $${total / 100} USD for ` +
+            `${leads.length} leads (invoice ${paidInvoice.id})`
         );
 
-        // Send CSV of leads as a fallback delivery mechanism.
-        // Wrapped separately so an email failure can't revert
-        // leads that were already successfully charged.
+        // Send CSV as fallback delivery. Wrapped separately so an
+        // email failure can't interfere with already-billed leads.
         try {
           await sendEmail(contractor, leads);
         } catch (emailError) {
@@ -639,51 +676,46 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
             emailError
           );
         }
-      } catch (chargeError) {
-        console.error(
-          'Charge failed, reverting leads to IN_PROGRESS:',
-          chargeError
+      } catch (payError) {
+        // Payment failed despite the card not being expired (could be
+        // insufficient funds, fraud hold, etc.). The finalized invoice
+        // stays open in Stripe — auto-retry will attempt collection
+        // per your Stripe retry settings. Leads stay CONNECTED; the
+        // invoice is the retry mechanism.
+        console.warn(
+          `Payment failed for invoice ${invoice.id} ` +
+            `(${contractor.email}). Stripe will auto-retry. ` +
+            `Error: ${payError}`
         );
-        await updateHubspotLeads(leads, 'IN_PROGRESS');
       }
     } catch (error) {
-      console.error('Error charging contractor:', error);
+      // Couldn't resolve Stripe info or create the invoice at all.
+      // Revert leads so they get retried on the next cron run.
+      console.error(
+        `Error creating invoice for contractor ${contractorId}:`,
+        error
+      );
+      try {
+        await updateHubspotLeads(
+          contractorLeadsMap[contractorId],
+          'IN_PROGRESS'
+        );
+      } catch (revertError) {
+        console.error('Failed to revert leads to IN_PROGRESS:', revertError);
+      }
     }
   }
 }
 
-async function chargeContractor(
-  sessionId: string,
-  amount: number,
-  metadata: Record<string, string>,
-  description: string
-) {
-  const currentSession = await stripe.checkout.sessions.retrieve(sessionId);
-  const setupIntentId = currentSession.setup_intent;
-  const customerId = currentSession.customer;
-
+async function getStripeCustomerInfo(sessionId: string) {
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
   const setupIntent = await stripe.setupIntents.retrieve(
-    setupIntentId as string
+    session.setup_intent as string
   );
-  const paymentMethodId = setupIntent.payment_method;
-
-  const payment = await stripe.paymentIntents.create({
-    customer: customerId as string,
-    payment_method: paymentMethodId as string,
-    amount: amount,
-    currency: 'usd',
-    confirm: true,
-    return_url: `${BASE_URL}/orders`,
-    automatic_payment_methods: {
-      enabled: true,
-      allow_redirects: 'never',
-    },
-    setup_future_usage: 'off_session',
-    metadata,
-    description,
-  });
-
-  return payment;
+  return {
+    customerId: session.customer as string,
+    paymentMethodId: setupIntent.payment_method as string,
+  };
 }
 
 // ---------------------------------------------------------------------------
