@@ -25,18 +25,72 @@ export default async function handler(
   }
 
   try {
+    // -----------------------------------------------------------------
+    // 1. Fetch both pools BEFORE any status changes so they don't
+    //    overlap. IN_PROGRESS leads are leftovers from a previous run
+    //    where GHL succeeded but billing failed. OPEN leads are new.
+    // -----------------------------------------------------------------
     const openLeads = await getOpenLeads();
     console.log(`${openLeads.length} open leads`);
     const unpaidLeads = await getUnpaidLeads();
     console.log(`${unpaidLeads.length} unpaid leads`);
 
+    // -----------------------------------------------------------------
+    // 2. Immediately claim OPEN leads by marking them IN_PROGRESS so
+    //    a concurrent or subsequent cron run can't re-fetch them.
+    // -----------------------------------------------------------------
+    if (openLeads.length > 0) {
+      await updateHubspotLeads(openLeads, 'IN_PROGRESS');
+      console.log(
+        `Claimed ${openLeads.length} open leads — marked IN_PROGRESS`
+      );
+    }
+
+    // -----------------------------------------------------------------
+    // 3. Round-robin match ONLY the new OPEN leads.
+    // -----------------------------------------------------------------
     const contractorOpenLeadsMap = await matchLeads(openLeads);
-    const contractorUnpaidLeadsMap = await matchLeads(unpaidLeads);
 
-    const successfulOpenLeadsMap = await handleOpenLeads(contractorOpenLeadsMap);
+    // -----------------------------------------------------------------
+    // 4. For IN_PROGRESS leads the contractor's company name is already
+    //    stamped on the HubSpot contact. Look it up instead of
+    //    re-running round-robin (which would re-increment zip counts
+    //    and could re-route the lead to a different contractor).
+    //
+    //    Leads whose company is still unset never completed GHL sync —
+    //    route them through matchLeads + handleOpenLeads so they get
+    //    synced and billed (or land in the retry pool for next run).
+    // -----------------------------------------------------------------
+    const { assigned: contractorUnpaidLeadsMap, unassigned: unsyncedLeads } =
+      await resolveLeadsByCompany(unpaidLeads);
 
+    if (unsyncedLeads.length > 0) {
+      console.log(
+        `${unsyncedLeads.length} IN_PROGRESS leads need GHL sync`
+      );
+    }
+    const contractorUnsyncedLeadsMap = await matchLeads(unsyncedLeads);
+
+    // -----------------------------------------------------------------
+    // 5. Process OPEN leads + unsynced IN_PROGRESS leads through GHL +
+    //    HubSpot sync. Only leads whose GHL contact was created
+    //    successfully make it into the billing set. The company name is
+    //    stamped AFTER GHL succeeds so it reliably means "fully synced,
+    //    safe to bill on retry."
+    // -----------------------------------------------------------------
+    const successfulOpenLeadsMap =
+      await handleOpenLeads(contractorOpenLeadsMap);
+    const successfulUnsyncedLeadsMap =
+      await handleOpenLeads(contractorUnsyncedLeadsMap);
+
+    // -----------------------------------------------------------------
+    // 6. Merge all three sets and charge.
+    //    - successfulOpenLeadsMap:     new leads that just completed GHL
+    //    - successfulUnsyncedLeadsMap: retried leads that just completed GHL
+    //    - contractorUnpaidLeadsMap:   leads already synced, billing retry
+    // -----------------------------------------------------------------
     const mergedLeadsMap = mergeLeadsMaps(
-      successfulOpenLeadsMap,
+      mergeLeadsMaps(successfulOpenLeadsMap, successfulUnsyncedLeadsMap),
       contractorUnpaidLeadsMap
     );
 
@@ -66,7 +120,6 @@ async function getHubspotLeads(status: string) {
   let after: string | undefined = undefined;
   const limit = 100;
 
-  // Only fetch leads created within the allowed window
   const cutoffTimestamp = String(
     Date.now() - MAX_LEAD_AGE_DAYS * 24 * 60 * 60 * 1000
   );
@@ -98,6 +151,7 @@ async function getHubspotLeads(status: string) {
         'address',
         'city',
         'zip',
+        'company',
       ],
       limit: limit,
     };
@@ -140,7 +194,7 @@ async function getHubspotLeads(status: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Least-assignments lead matching
+// Round-robin matching (OPEN leads only)
 // ---------------------------------------------------------------------------
 
 async function matchLeads(leads: any[]) {
@@ -154,7 +208,6 @@ async function matchLeads(leads: any[]) {
         continue;
       }
 
-      // Fetch ALL contractors that serve this zip, in a stable order.
       const contractors = await prisma.contractor.findMany({
         where: { zipCodes: { has: zip } },
         orderBy: { id: 'asc' },
@@ -162,12 +215,9 @@ async function matchLeads(leads: any[]) {
 
       if (contractors.length === 0) continue;
 
-      // Pick the contractor with the fewest assignments for this zip.
-      // Uses a serialized transaction so concurrent runs don't collide.
       const contractor = await prisma.$transaction(async (tx) => {
         const contractorIds = contractors.map((c) => c.id);
 
-        // Get existing counts for all contractors serving this zip
         const existingCounts = await tx.contractorZipCount.findMany({
           where: {
             zipCode: zip,
@@ -179,9 +229,6 @@ async function matchLeads(leads: any[]) {
           existingCounts.map((c) => [c.contractorId, c.assignedCount])
         );
 
-        // Find the contractor with the lowest count.
-        // Contractors with no row yet have an implicit count of 0.
-        // Tie-break by id (the contractors array is already sorted by id asc).
         let bestContractor = contractors[0];
         let bestCount = countMap.get(contractors[0].id) ?? 0;
 
@@ -193,7 +240,6 @@ async function matchLeads(leads: any[]) {
           }
         }
 
-        // Atomically increment (or create) the winner's count
         await tx.contractorZipCount.upsert({
           where: {
             contractorId_zipCode: {
@@ -219,13 +265,79 @@ async function matchLeads(leads: any[]) {
       }
       contractorLeadsMap[contractor.id].push(lead);
     } catch (error) {
-      // Log and skip — one bad lead never blocks the rest of the batch.
       console.error(`Failed to match lead ${lead.id}, skipping:`, error);
       continue;
     }
   }
 
   return contractorLeadsMap;
+}
+
+// ---------------------------------------------------------------------------
+// Company-name resolution (IN_PROGRESS leads only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Splits IN_PROGRESS leads into two buckets:
+ *
+ * - **assigned**: the contractor's company name is already stamped on
+ *   the HubSpot contact → group by contractor, ready for billing.
+ * - **unassigned**: company is still "Unknown Company" / "Roofs Local"
+ *   / empty → GHL sync never completed, need to go back through
+ *   matchLeads + handleOpenLeads before they can be billed.
+ */
+async function resolveLeadsByCompany(leads: any[]): Promise<{
+  assigned: { [key: string]: any[] };
+  unassigned: any[];
+}> {
+  const assigned: { [key: string]: any[] } = {};
+  const unassigned: any[] = [];
+
+  if (leads.length === 0) return { assigned, unassigned };
+
+  // Build a company-name → contractor lookup once
+  const allContractors = await prisma.contractor.findMany();
+  const companyMap = new Map(
+    allContractors
+      .filter((c) => c.company)
+      .map((c) => [c.company!.toLowerCase(), c])
+  );
+
+  for (const lead of leads) {
+    const companyName = lead.company?.trim();
+
+    if (
+      !companyName ||
+      companyName.toLowerCase() === 'unknown company' ||
+      companyName.toLowerCase() === 'roofs local'
+    ) {
+      // GHL sync never completed — needs full processing
+      console.log(
+        `IN_PROGRESS lead ${lead.id} has no contractor assignment ` +
+          `(company="${companyName}"), routing through GHL sync`
+      );
+      unassigned.push(lead);
+      continue;
+    }
+
+    const contractor = companyMap.get(companyName.toLowerCase());
+
+    if (!contractor) {
+      console.warn(
+        `IN_PROGRESS lead ${lead.id} has unrecognised company ` +
+          `"${companyName}", routing through GHL sync`
+      );
+      unassigned.push(lead);
+      continue;
+    }
+
+    if (!assigned[contractor.id]) {
+      assigned[contractor.id] = [];
+    }
+    assigned[contractor.id].push(lead);
+  }
+
+  return { assigned, unassigned };
 }
 
 // ---------------------------------------------------------------------------
@@ -250,18 +362,40 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
     for (const lead of leads) {
       await delay(1000);
       await importHubspotContact(lead, contractor);
-      await updateHubspotCompany(lead, contractor);
+
       const ghlData = await createGHLContact(lead, contractor);
       if (ghlData) {
         await createGHLOpporunity(ghlData.contact.id, lead, contractor);
+
+        // Stamp the contractor's company name AFTER GHL succeeds.
+        // resolveLeadsByCompany reads this on billing retries, so it
+        // must only be set once GHL sync is confirmed done.
+        await updateHubspotCompany(lead, contractor);
+
         if (!successfulLeadsMap[contractorId]) {
           successfulLeadsMap[contractorId] = [];
         }
         successfulLeadsMap[contractorId].push(lead);
       } else {
         console.warn(
-          `GHL contact creation failed for lead ${lead.id}, excluding from billing`
+          `GHL contact creation failed for lead ${lead.id}, ` +
+            `will retry on next run (lead stays IN_PROGRESS)`
         );
+
+        // Undo the round-robin increment so the count stays accurate.
+        // Next run will re-match this lead and increment fresh.
+        const zip = lead.zip?.substring(0, 5);
+        if (zip) {
+          await prisma.contractorZipCount.update({
+            where: {
+              contractorId_zipCode: {
+                contractorId: contractorId,
+                zipCode: zip,
+              },
+            },
+            data: { assignedCount: { decrement: 1 } },
+          });
+        }
       }
     }
   }
@@ -460,9 +594,8 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
 
       if (leads.length === 0) continue;
 
-      // --- Duplicate billing protection ---
-      // Mark leads as CONNECTED *before* charging so a concurrent run won't
-      // pick them up. If the charge fails we revert them back to IN_PROGRESS.
+      // Mark leads as CONNECTED before charging so concurrent runs
+      // won't pick them up. Revert to IN_PROGRESS if charge fails.
       await updateHubspotLeads(leads, 'CONNECTED');
 
       const cost = leads.length * contractor.pricePerLead;
@@ -477,7 +610,6 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
             contractorEmail: contractor.email,
             leadCount: String(leads.length),
             pricePerLead: String(contractor.pricePerLead),
-            // Stripe metadata values are capped at 500 chars; truncate if needed
             leadIds: leadIds.join(',').substring(0, 500),
             billedAt: new Date().toISOString(),
           },
@@ -488,7 +620,6 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
 
         if (payment.status !== 'succeeded') {
           console.error("Payment didn't process:", payment.status);
-          // Revert leads so they get picked up on the next run
           await updateHubspotLeads(leads, 'IN_PROGRESS');
           continue;
         }
@@ -496,6 +627,18 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
         console.log(
           `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
         );
+
+        // Send CSV of leads as a fallback delivery mechanism.
+        // Wrapped separately so an email failure can't revert
+        // leads that were already successfully charged.
+        try {
+          await sendEmail(contractor, leads);
+        } catch (emailError) {
+          console.error(
+            `Email delivery failed for ${contractor.email}:`,
+            emailError
+          );
+        }
       } catch (chargeError) {
         console.error(
           'Charge failed, reverting leads to IN_PROGRESS:',
