@@ -25,20 +25,16 @@ export default async function handler(
   }
 
   try {
-    // -----------------------------------------------------------------
     // 1. Fetch both pools BEFORE any status changes so they don't
     //    overlap. IN_PROGRESS leads are leftovers from a previous run
     //    where GHL succeeded but billing failed. OPEN leads are new.
-    // -----------------------------------------------------------------
     const openLeads = await getOpenLeads();
     console.log(`${openLeads.length} open leads`);
     const unpaidLeads = await getUnpaidLeads();
     console.log(`${unpaidLeads.length} unpaid leads`);
 
-    // -----------------------------------------------------------------
     // 2. Immediately claim OPEN leads by marking them IN_PROGRESS so
     //    a concurrent or subsequent cron run can't re-fetch them.
-    // -----------------------------------------------------------------
     if (openLeads.length > 0) {
       await updateHubspotLeads(openLeads, 'IN_PROGRESS');
       console.log(
@@ -46,12 +42,9 @@ export default async function handler(
       );
     }
 
-    // -----------------------------------------------------------------
     // 3. Round-robin match ONLY the new OPEN leads.
-    // -----------------------------------------------------------------
     const contractorOpenLeadsMap = await matchLeads(openLeads);
 
-    // -----------------------------------------------------------------
     // 4. For IN_PROGRESS leads the contractor's company name is already
     //    stamped on the HubSpot contact. Look it up instead of
     //    re-running round-robin (which would re-increment zip counts
@@ -60,7 +53,6 @@ export default async function handler(
     //    Leads whose company is still unset never completed GHL sync —
     //    route them through matchLeads + handleOpenLeads so they get
     //    synced and billed (or land in the retry pool for next run).
-    // -----------------------------------------------------------------
     const { assigned: contractorUnpaidLeadsMap, unassigned: unsyncedLeads } =
       await resolveLeadsByCompany(unpaidLeads);
 
@@ -71,24 +63,15 @@ export default async function handler(
     }
     const contractorUnsyncedLeadsMap = await matchLeads(unsyncedLeads);
 
-    // -----------------------------------------------------------------
     // 5. Process OPEN leads + unsynced IN_PROGRESS leads through GHL +
     //    HubSpot sync. Only leads whose GHL contact was created
-    //    successfully make it into the billing set. The company name is
-    //    stamped AFTER GHL succeeds so it reliably means "fully synced,
-    //    safe to bill on retry."
-    // -----------------------------------------------------------------
+    //    successfully make it into the billing set.
     const successfulOpenLeadsMap =
       await handleOpenLeads(contractorOpenLeadsMap);
     const successfulUnsyncedLeadsMap =
       await handleOpenLeads(contractorUnsyncedLeadsMap);
 
-    // -----------------------------------------------------------------
     // 6. Merge all three sets and charge.
-    //    - successfulOpenLeadsMap:     new leads that just completed GHL
-    //    - successfulUnsyncedLeadsMap: retried leads that just completed GHL
-    //    - contractorUnpaidLeadsMap:   leads already synced, billing retry
-    // -----------------------------------------------------------------
     const mergedLeadsMap = mergeLeadsMaps(
       mergeLeadsMaps(successfulOpenLeadsMap, successfulUnsyncedLeadsMap),
       contractorUnpaidLeadsMap
@@ -277,15 +260,6 @@ async function matchLeads(leads: any[]) {
 // Company-name resolution (IN_PROGRESS leads only)
 // ---------------------------------------------------------------------------
 
-/**
- * Splits IN_PROGRESS leads into two buckets:
- *
- * - **assigned**: the contractor's company name is already stamped on
- *   the HubSpot contact → group by contractor, ready for billing.
- * - **unassigned**: company is still "Unknown Company" / "Roofs Local"
- *   / empty → GHL sync never completed, need to go back through
- *   matchLeads + handleOpenLeads before they can be billed.
- */
 async function resolveLeadsByCompany(leads: any[]): Promise<{
   assigned: { [key: string]: any[] };
   unassigned: any[];
@@ -295,7 +269,6 @@ async function resolveLeadsByCompany(leads: any[]): Promise<{
 
   if (leads.length === 0) return { assigned, unassigned };
 
-  // Build a company-name → contractor lookup once
   const allContractors = await prisma.contractor.findMany();
   const companyMap = new Map(
     allContractors
@@ -311,7 +284,6 @@ async function resolveLeadsByCompany(leads: any[]): Promise<{
       companyName.toLowerCase() === 'unknown company' ||
       companyName.toLowerCase() === 'roofs local'
     ) {
-      // GHL sync never completed — needs full processing
       console.log(
         `IN_PROGRESS lead ${lead.id} has no contractor assignment ` +
           `(company="${companyName}"), routing through GHL sync`
@@ -383,7 +355,6 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
         );
 
         // Undo the round-robin increment so the count stays accurate.
-        // Next run will re-match this lead and increment fresh.
         const zip = lead.zip?.substring(0, 5);
         if (zip) {
           await prisma.contractorZipCount.update({
@@ -557,7 +528,7 @@ async function createGHLOpporunity(
 }
 
 // ---------------------------------------------------------------------------
-// Billing
+// Billing (old-style atomic paymentIntent)
 // ---------------------------------------------------------------------------
 
 function mergeLeadsMaps(
@@ -593,81 +564,41 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
       const leads = contractorLeadsMap[contractorId];
       if (leads.length === 0) continue;
 
-      // Resolve Stripe customer + payment method from the original
-      // checkout session the contractor completed during onboarding.
-      const { customerId, paymentMethodId } = await getStripeCustomerInfo(
-        contractor.stripeSessionId
-      );
-
-      // Pre-check: verify the card isn't expired before we mark
-      // anything CONNECTED or create an invoice. If the card is dead,
-      // skip this contractor entirely — leads stay IN_PROGRESS and
-      // will retry on the next cron run.
-      const paymentMethod = await stripe.paymentMethods.retrieve(
-        paymentMethodId
-      );
-
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1; // 1-indexed
-      const currentYear = now.getFullYear();
-      const expMonth = paymentMethod.card?.exp_month ?? 0;
-      const expYear = paymentMethod.card?.exp_year ?? 0;
-
-      if (
-        expYear < currentYear ||
-        (expYear === currentYear && expMonth < currentMonth)
-      ) {
-        console.warn(
-          `Skipping ${contractor.email} — card ending ` +
-            `${paymentMethod.card?.last4} expired ${expMonth}/${expYear}. ` +
-            `${leads.length} leads stay IN_PROGRESS.`
-        );
-        continue;
-      }
-
-      // Card looks good — mark CONNECTED so concurrent runs skip these.
+      // Mark leads as CONNECTED before charging so a concurrent run
+      // won't pick them up. If the charge fails we revert to IN_PROGRESS.
       await updateHubspotLeads(leads, 'CONNECTED');
 
-      // Create one invoice item per lead
-      for (const lead of leads) {
-        await stripe.invoiceItems.create({
-          customer: customerId,
-          amount: contractor.pricePerLead,
-          currency: 'usd',
-          description: `Lead: ${lead.firstname} ${lead.lastname} — ${
-            lead.city || ''
-          } ${lead.zip || ''}`,
-        });
-      }
+      const cost = leads.length * contractor.pricePerLead;
+      const leadIds = leads.map((l: any) => l.id);
 
-      // Create and finalize the invoice
-      const invoice = await stripe.invoices.create({
-        customer: customerId,
-        default_payment_method: paymentMethodId,
-        collection_method: 'charge_automatically',
-        metadata: {
-          contractorId: contractor.id,
-          contractorEmail: contractor.email,
-          leadCount: String(leads.length),
-          pricePerLead: String(contractor.pricePerLead),
-          billedAt: new Date().toISOString(),
-        },
-      });
-
-      await stripe.invoices.finalizeInvoice(invoice.id);
-
-      // Attempt immediate collection
       try {
-        const paidInvoice = await stripe.invoices.pay(invoice.id);
-
-        const total = leads.length * contractor.pricePerLead;
-        console.log(
-          `Invoiced ${contractor.email} $${total / 100} USD for ` +
-            `${leads.length} leads (invoice ${paidInvoice.id})`
+        const payment = await chargeContractor(
+          contractor.stripeSessionId,
+          cost,
+          {
+            contractorId: contractor.id,
+            contractorEmail: contractor.email,
+            leadCount: String(leads.length),
+            pricePerLead: String(contractor.pricePerLead),
+            // Stripe metadata values are capped at 500 chars; truncate if needed
+            leadIds: leadIds.join(',').substring(0, 500),
+            billedAt: new Date().toISOString(),
+          },
+          `${leads.length} leads for ${contractor.email} at $${
+            contractor.pricePerLead / 100
+          }/lead`
         );
 
-        // Send CSV as fallback delivery. Wrapped separately so an
-        // email failure can't interfere with already-billed leads.
+        if (payment.status !== 'succeeded') {
+          console.error("Payment didn't process:", payment.status);
+          await updateHubspotLeads(leads, 'IN_PROGRESS');
+          continue;
+        }
+
+        console.log(
+          `Charged ${contractor.email} $${cost / 100} USD for ${leads.length} leads`
+        );
+
         try {
           await sendEmail(contractor, leads);
         } catch (emailError) {
@@ -676,46 +607,51 @@ async function chargeForLeads(contractorLeadsMap: { [key: string]: any[] }) {
             emailError
           );
         }
-      } catch (payError) {
-        // Payment failed despite the card not being expired (could be
-        // insufficient funds, fraud hold, etc.). The finalized invoice
-        // stays open in Stripe — auto-retry will attempt collection
-        // per your Stripe retry settings. Leads stay CONNECTED; the
-        // invoice is the retry mechanism.
-        console.warn(
-          `Payment failed for invoice ${invoice.id} ` +
-            `(${contractor.email}). Stripe will auto-retry. ` +
-            `Error: ${payError}`
+      } catch (chargeError) {
+        console.error(
+          'Charge failed, reverting leads to IN_PROGRESS:',
+          chargeError
         );
+        await updateHubspotLeads(leads, 'IN_PROGRESS');
       }
     } catch (error) {
-      // Couldn't resolve Stripe info or create the invoice at all.
-      // Revert leads so they get retried on the next cron run.
-      console.error(
-        `Error creating invoice for contractor ${contractorId}:`,
-        error
-      );
-      try {
-        await updateHubspotLeads(
-          contractorLeadsMap[contractorId],
-          'IN_PROGRESS'
-        );
-      } catch (revertError) {
-        console.error('Failed to revert leads to IN_PROGRESS:', revertError);
-      }
+      console.error('Error charging contractor:', error);
     }
   }
 }
 
-async function getStripeCustomerInfo(sessionId: string) {
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
+async function chargeContractor(
+  sessionId: string,
+  amount: number,
+  metadata: Record<string, string>,
+  description: string
+) {
+  const currentSession = await stripe.checkout.sessions.retrieve(sessionId);
+  const setupIntentId = currentSession.setup_intent;
+  const customerId = currentSession.customer;
+
   const setupIntent = await stripe.setupIntents.retrieve(
-    session.setup_intent as string
+    setupIntentId as string
   );
-  return {
-    customerId: session.customer as string,
-    paymentMethodId: setupIntent.payment_method as string,
-  };
+  const paymentMethodId = setupIntent.payment_method;
+
+  const payment = await stripe.paymentIntents.create({
+    customer: customerId as string,
+    payment_method: paymentMethodId as string,
+    amount: amount,
+    currency: 'usd',
+    confirm: true,
+    return_url: `${BASE_URL}/orders`,
+    automatic_payment_methods: {
+      enabled: true,
+      allow_redirects: 'never',
+    },
+    setup_future_usage: 'off_session',
+    metadata,
+    description,
+  });
+
+  return payment;
 }
 
 // ---------------------------------------------------------------------------
