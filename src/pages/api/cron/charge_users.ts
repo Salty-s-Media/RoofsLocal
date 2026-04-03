@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
 import { Resend } from 'resend';
 import { Parser } from 'json2csv';
 import Stripe from 'stripe';
 
-const prisma = new PrismaClient();
+import prisma from '../../../../utils/prisma'
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 const json2csvParser = new Parser();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
