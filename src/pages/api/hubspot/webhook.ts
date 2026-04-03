@@ -1,8 +1,8 @@
-import { PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
 import { NextApiRequest, NextApiResponse } from "next";
 
-const prisma = new PrismaClient();
+import prisma from '../../../../utils/prisma'
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY;
