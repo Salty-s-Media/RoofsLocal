@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Search, X, Trash2, DollarSign, ListPlus, Download, ListX, ExternalLink, ChevronRight, ToggleLeft, ToggleRight, Plus, Check, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Search, X, Trash2, DollarSign, ListPlus, Download, ListX, ExternalLink, ChevronRight, ToggleLeft, ToggleRight, Plus, Check, AlertTriangle, ArrowLeft, Activity } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { FormEvent, useEffect, useMemo, useState, useCallback } from 'react';
 
@@ -32,6 +32,42 @@ interface Contractor {
   pricePerLead: number;
   leadsSent: number;
   revenueCollected: number;
+}
+
+interface PipelineLeadDetail {
+  id: string;
+  name: string;
+  zip: string;
+  status: 'open' | 'in_progress';
+  createdate: string | null;
+  hubspotUrl: string | null;
+}
+
+interface PipelineBillingEntry {
+  leads: number;
+  wouldCharge: string;
+  pricePerLead: number;
+  company: string;
+  leadDetails: PipelineLeadDetail[];
+}
+
+interface PipelineUnmatchedLead {
+  id: string;
+  name: string;
+  zip: string | null;
+  reason: 'no_zip' | 'no_contractor_coverage';
+  source: 'open' | 'in_progress';
+  createdate: string | null;
+  hubspotUrl: string | null;
+}
+
+interface PipelinePreview {
+  message: string;
+  openLeads: number;
+  unpaidLeads: number;
+  unsyncedLeads: number;
+  billing: Record<string, PipelineBillingEntry>;
+  unmatchedLeads: PipelineUnmatchedLead[];
 }
 
 type ModalType = 'price' | 'addZip' | 'deleteZip' | 'delete' | 'leads' | null;
@@ -100,6 +136,14 @@ function formatDateLabel(startDate: string, endDate: string): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
   return `${fmtDate(startDate)} – ${fmtDate(endDate)}`;
+}
+
+function formatLeadDate(dateStr: string | null): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    + ' '
+    + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' });
 }
 
 /* ------------------------------------------------------------------ */
@@ -259,6 +303,11 @@ export default function Admin() {
   // Delete confirmation in detail panel
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Pipeline preview state
+  const [pipelinePreview, setPipelinePreview] = useState<PipelinePreview | null>(null);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+  const [showPipelinePreview, setShowPipelinePreview] = useState(false);
+
   const router = useRouter();
 
   const { startDate, endDate } = getDateRange(timePeriod, customStartDate, customEndDate);
@@ -317,6 +366,15 @@ export default function Admin() {
     return { totalLeads, totalRevenue, avgPPL, count: filteredUsers.length };
   }, [filteredUsers]);
 
+  // Pipeline preview computed values
+  const pipelineTotals = useMemo(() => {
+    if (!pipelinePreview) return { totalLeads: 0, totalCharge: 0, contractorCount: 0 };
+    const entries = Object.values(pipelinePreview.billing);
+    const totalLeads = entries.reduce((s, e) => s + e.leads, 0);
+    const totalCharge = entries.reduce((s, e) => s + parseFloat(e.wouldCharge.replace('$', '')), 0);
+    return { totalLeads, totalCharge, contractorCount: entries.length };
+  }, [pipelinePreview]);
+
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 4000);
@@ -363,6 +421,29 @@ export default function Admin() {
     if (authed) getUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, authed]);
+
+  /* ---- Pipeline Preview ---- */
+
+  const fetchPipelinePreview = async () => {
+    setPipelineLoading(true);
+    setShowPipelinePreview(true);
+    setPipelinePreview(null);
+    try {
+      const res = await fetch('/api/cron/charge_users_test?dryRun=true');
+      if (res.ok) {
+        const data: PipelinePreview = await res.json();
+        setPipelinePreview(data);
+      } else {
+        showNotification('error', 'Failed to load pipeline preview');
+        setShowPipelinePreview(false);
+      }
+    } catch {
+      showNotification('error', 'An error occurred loading the pipeline preview');
+      setShowPipelinePreview(false);
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
 
   const getContractorLeads = async (contractor: Contractor) => {
     setLeadsContractor(contractor);
@@ -626,6 +707,281 @@ export default function Admin() {
             />
           </div>
         )}
+      </div>
+    );
+  };
+
+  /* ------------------------------------------------------------------ */
+  /*  Pipeline Preview Modal                                             */
+  /* ------------------------------------------------------------------ */
+
+  const PipelinePreviewModal = () => {
+    if (!showPipelinePreview) return null;
+
+    const billingEntries = pipelinePreview
+      ? Object.entries(pipelinePreview.billing).sort(
+          (a, b) => b[1].leads - a[1].leads
+        )
+      : [];
+
+    const unmatchedLeads = pipelinePreview?.unmatchedLeads ?? [];
+    const noCoverageLeads = unmatchedLeads.filter((l) => l.reason === 'no_contractor_coverage');
+    const noZipLeads = unmatchedLeads.filter((l) => l.reason === 'no_zip');
+
+    const LeadDateBadge = ({ dateStr }: { dateStr: string | null }) => (
+      <span className="text-[10px] text-gray-400 whitespace-nowrap">
+        {formatLeadDate(dateStr)}
+      </span>
+    );
+
+    const HubSpotLink = ({ url }: { url: string | null }) =>
+      url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-blue-500 hover:text-blue-700 transition"
+          title="Open in HubSpot"
+        >
+          <ExternalLink size={12} />
+        </a>
+      ) : null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg">
+                <Activity size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Pipeline Preview</h3>
+                <p className="text-xs text-gray-500">Read-only snapshot — no charges or syncs performed</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPipelinePreview(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="p-6">
+            {pipelineLoading ? (
+              <div className="text-center py-16">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent mb-4" />
+                <p className="text-gray-500 font-medium">Scanning HubSpot leads and matching contractors\u2026</p>
+              </div>
+            ) : pipelinePreview ? (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Open</p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-1">{pipelinePreview.openLeads}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">New from HubSpot</p>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">In Progress</p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-1">{pipelinePreview.unpaidLeads}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Pending billing</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Unmatched</p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-1">{unmatchedLeads.length}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">No coverage</p>
+                  </div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Est. Charges</p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-1">${pipelineTotals.totalCharge.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{pipelineTotals.totalLeads} leads total</p>
+                  </div>
+                </div>
+
+                {/* Contractor breakdown */}
+                {billingEntries.length === 0 && unmatchedLeads.length === 0 ? (
+                  <div className="text-center py-10 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500 font-medium">No leads in the pipeline right now</p>
+                    <p className="text-gray-400 text-sm mt-1">Check back when new HubSpot leads come in</p>
+                  </div>
+                ) : (
+                  <>
+                    {billingEntries.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
+                          Contractor Breakdown ({pipelineTotals.contractorCount})
+                        </h4>
+                        <div className="space-y-3">
+                          {billingEntries.map(([email, info]) => (
+                            <div
+                              key={email}
+                              className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition"
+                            >
+                              {/* Contractor header row */}
+                              <div className="flex items-center justify-between px-4 py-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+                                    {info.leads}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">{info.company}</p>
+                                    <p className="text-xs text-gray-500 truncate">{email}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0 ml-4">
+                                  <p className="text-sm font-bold text-gray-900">{info.wouldCharge}</p>
+                                  <p className="text-xs text-gray-400">
+                                    ${info.pricePerLead.toFixed(2)}/lead
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Lead detail rows */}
+                              {info.leadDetails && info.leadDetails.length > 0 && (
+                                <div className="border-t border-gray-200 bg-white">
+                                  {info.leadDetails.map((ld) => (
+                                    <div
+                                      key={ld.id}
+                                      className="flex items-center justify-between px-4 py-2 text-xs border-b border-gray-100 last:border-b-0"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <HubSpotLink url={ld.hubspotUrl} />
+                                        <span className="text-gray-700 font-medium truncate">{ld.name || 'Unknown'}</span>
+                                        <span className="text-gray-300">·</span>
+                                        <span className="text-gray-500 font-mono">{ld.zip}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0 ml-3">
+                                        <LeadDateBadge dateStr={ld.createdate} />
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
+                                            ld.status === 'open'
+                                              ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                              : 'bg-orange-50 text-orange-600 border border-orange-200'
+                                          }`}
+                                        >
+                                          {ld.status === 'open' ? 'Open' : 'In Progress'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Total bar */}
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t-2 border-gray-300">
+                          <p className="text-sm font-bold text-gray-700 uppercase tracking-wider">Total</p>
+                          <div className="text-right">
+                            <p className="text-lg font-extrabold text-gray-900">
+                              ${pipelineTotals.totalCharge.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {pipelineTotals.totalLeads} leads across {pipelineTotals.contractorCount} contractor{pipelineTotals.contractorCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unmatched leads section */}
+                    {unmatchedLeads.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                          Unmatched Leads ({unmatchedLeads.length})
+                        </h4>
+
+                        {noCoverageLeads.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                              No Contractor Coverage ({noCoverageLeads.length})
+                            </p>
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                              {noCoverageLeads.map((lead, i) => (
+                                <div
+                                  key={lead.id}
+                                  className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                                    i < noCoverageLeads.length - 1 ? 'border-b border-slate-100' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <HubSpotLink url={lead.hubspotUrl} />
+                                    <span className="text-gray-700 font-medium truncate">{lead.name || 'Unknown'}</span>
+                                    <span className="text-gray-300">·</span>
+                                    <span className="text-gray-500 font-mono text-xs">{lead.zip}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <LeadDateBadge dateStr={lead.createdate} />
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
+                                        lead.source === 'open'
+                                          ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                          : 'bg-orange-50 text-orange-600 border border-orange-200'
+                                      }`}
+                                    >
+                                      {lead.source === 'open' ? 'Open' : 'In Progress'}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200">
+                                      No Coverage
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {noZipLeads.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                              Missing Zip Code ({noZipLeads.length})
+                            </p>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                              {noZipLeads.map((lead, i) => (
+                                <div
+                                  key={lead.id}
+                                  className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                                    i < noZipLeads.length - 1 ? 'border-b border-gray-100' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <HubSpotLink url={lead.hubspotUrl} />
+                                    <span className="text-gray-700 font-medium truncate">{lead.name || 'Unknown'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <LeadDateBadge dateStr={lead.createdate} />
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 border border-gray-200">
+                                      No Zip
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Refresh button */}
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={fetchPipelinePreview}
+                    className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition"
+                  >
+                    Refresh Preview
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </div>
       </div>
     );
   };
@@ -1171,6 +1527,13 @@ export default function Admin() {
 
               <div className="flex flex-wrap gap-3">
                 <button
+                  onClick={fetchPipelinePreview}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition font-medium"
+                >
+                  <Activity size={18} />
+                  Pipeline Preview
+                </button>
+                <button
                   onClick={copyAllZipCodes}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
                 >
@@ -1350,6 +1713,9 @@ export default function Admin() {
 
           {/* ── Detail Panel (slide-in from right) ── */}
           {detailContractor && <DetailPanel />}
+
+          {/* ── Pipeline Preview Modal ── */}
+          <PipelinePreviewModal />
         </div>
       )}
     </div>
