@@ -774,7 +774,7 @@ export default function Admin() {
             {pipelineLoading ? (
               <div className="text-center py-16">
                 <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent mb-4" />
-                <p className="text-gray-500 font-medium">Scanning HubSpot leads and matching contractors\u2026</p>
+                <p className="text-gray-500 font-medium">Scanning HubSpot leads and matching contractors...</p>
               </div>
             ) : pipelinePreview ? (
               <>
