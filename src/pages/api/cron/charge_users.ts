@@ -212,16 +212,19 @@ async function matchLeads(leads: any[]) {
           existingCounts.map((c) => [c.contractorId, c.assignedCount])
         );
 
-        let bestContractor = contractors[0];
-        let bestCount = countMap.get(contractors[0].id) ?? 0;
-
-        for (let i = 1; i < contractors.length; i++) {
-          const count = countMap.get(contractors[i].id) ?? 0;
+        let bestCount = Infinity;
+        for (const c of contractors) {
+          const count = countMap.get(c.id) ?? 0;
           if (count < bestCount) {
             bestCount = count;
-            bestContractor = contractors[i];
           }
         }
+
+        const candidates = contractors.filter(
+          (c) => (countMap.get(c.id) ?? 0) === bestCount
+        );
+        const bestContractor =
+          candidates[Math.floor(Math.random() * candidates.length)];
 
         await tx.contractorZipCount.upsert({
           where: {
@@ -335,14 +338,13 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
       await delay(1000);
       await importHubspotContact(lead, contractor);
 
+      // Stamp company BEFORE GHL so retries resolve via
+      // resolveLeadsByCompany and never re-enter matchLeads.
+      await updateHubspotCompany(lead, contractor);
+
       const ghlData = await createGHLContact(lead, contractor);
       if (ghlData) {
         await createGHLOpporunity(ghlData.contact.id, lead, contractor);
-
-        // Stamp the contractor's company name AFTER GHL succeeds.
-        // resolveLeadsByCompany reads this on billing retries, so it
-        // must only be set once GHL sync is confirmed done.
-        await updateHubspotCompany(lead, contractor);
 
         if (!successfulLeadsMap[contractorId]) {
           successfulLeadsMap[contractorId] = [];
@@ -353,20 +355,7 @@ async function handleOpenLeads(contractorLeadsMap: { [key: string]: any[] }) {
           `GHL contact creation failed for lead ${lead.id}, ` +
             `will retry on next run (lead stays IN_PROGRESS)`
         );
-
-        // Undo the round-robin increment so the count stays accurate.
-        const zip = lead.zip?.substring(0, 5);
-        if (zip) {
-          await prisma.contractorZipCount.update({
-            where: {
-              contractorId_zipCode: {
-                contractorId: contractorId,
-                zipCode: zip,
-              },
-            },
-            data: { assignedCount: { decrement: 1 } },
-          });
-        }
+        // Assignment is final — do NOT decrement zip count.
       }
     }
   }
